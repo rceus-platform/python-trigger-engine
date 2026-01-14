@@ -21,5 +21,6 @@ jobs:
                       set -e
                       APP_NAME="$(basename $GITHUB_REPOSITORY)"
                       cd /opt/apps/$APP_NAME
+                      git clean -fd
                       git pull origin main
                       sudo systemctl restart "$APP_NAME"
