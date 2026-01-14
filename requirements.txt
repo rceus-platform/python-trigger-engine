@@ -2,3 +2,4 @@ django
 python-dotenv
 google-generativeai
 gunicorn
+uvicorn
