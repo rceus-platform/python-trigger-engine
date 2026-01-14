@@ -1,7 +1,5 @@
 import json
-import os
 from datetime import date
-from pathlib import Path
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -11,8 +9,6 @@ from core.services.audio_extractor import extract_audio_for_gemini
 from core.services.gemini_transcriber import gemini_transcribe
 from core.services.recall import get_daily_triggers
 from core.services.reel_downloader import download_reel
-from core.services.speech_to_text import transcribe_audio
-from core.services.translator import normalize_hindi_to_devanagari, translate_to_english
 from core.services.trigger_gemini import extract_triggers_gemini
 
 USE_GEMINI_ASR = True
