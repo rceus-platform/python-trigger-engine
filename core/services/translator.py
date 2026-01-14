@@ -1,8 +1,8 @@
-import os
-
 from google import genai
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+from core.constants import GEMINI_API_KEY
+
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 TRANSLATION_MODEL = "models/gemini-flash-lite-latest"
 

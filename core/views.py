@@ -14,6 +14,11 @@ from core.services.trigger_gemini import extract_triggers_gemini
 USE_GEMINI_ASR = True
 
 
+def health_check(request):
+    """Health check endpoint"""
+    return JsonResponse({"status": "healthy", "message": "API is running"})
+
+
 @csrf_exempt
 def process_reel(request):
     if request.method != "POST":
