@@ -5,10 +5,6 @@ from core.utils.ffmpeg import get_ffmpeg_path
 
 # ---- Cross-platform ffmpeg injection ----
 ffmpeg_path = get_ffmpeg_path()
-ffmpeg_dir = ffmpeg_path.parent
-
-os.environ["PATH"] = str(ffmpeg_dir) + os.pathsep + os.environ.get("PATH", "")
-# ----------------------------------------
 
 import whisper
 

@@ -1,5 +1,7 @@
 import base64
+import json
 import os
+import re
 
 from google import genai
 
@@ -59,7 +61,5 @@ Output STRICT JSON only in this format:
             }
         ],
     )
-
-    import json
 
     return json.loads(response.text.strip())

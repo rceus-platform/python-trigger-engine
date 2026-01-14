@@ -1,11 +1,13 @@
 import json
+import os
 from datetime import date
+from pathlib import Path
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import ReelInsight
-from core.services.audio_extractor import extract_audio, extract_audio_for_gemini
+from core.services.audio_extractor import extract_audio_for_gemini
 from core.services.gemini_transcriber import gemini_transcribe
 from core.services.recall import get_daily_triggers
 from core.services.reel_downloader import download_reel
@@ -35,29 +37,12 @@ def process_reel(request):
 
     video_path = download_reel(url)
 
-    if USE_GEMINI_ASR:
-        audio_path = extract_audio_for_gemini(video_path)
-        result = gemini_transcribe(str(audio_path))
+    audio_path = extract_audio_for_gemini(video_path)
+    result = gemini_transcribe(str(audio_path))
 
-        language = result["language"]
-        transcript_original = result["transcript_native"]
-        transcript_english = result["transcript_english"]
-    else:
-        # existing Whisper pipeline
-        audio_path = extract_audio(video_path)
-        language, raw_transcript = transcribe_audio(audio_path)
-
-        if language == "hi":
-            transcript_original = normalize_hindi_to_devanagari(raw_transcript)
-            transcript_english = translate_to_english(transcript_original)
-
-        elif language == "mr":
-            transcript_original = raw_transcript  # already Devanagari normally
-            transcript_english = translate_to_english(transcript_original)
-
-        else:  # en
-            transcript_original = raw_transcript
-            transcript_english = raw_transcript
+    language = result["language"]
+    transcript_original = result["transcript_native"]
+    transcript_english = result["transcript_english"]
 
     # Triggers always from English
     triggers = extract_triggers_gemini(transcript_english)
@@ -70,6 +55,12 @@ def process_reel(request):
         triggers="\n".join(triggers),
     )
 
+    try:
+        video_path.unlink(missing_ok=True)
+        audio_path.unlink(missing_ok=True)
+    except Exception as e:
+        print("Cleanup failed:", e)
+
     return JsonResponse(
         {
             "status": "saved",
@@ -78,7 +69,8 @@ def process_reel(request):
             "transcript_original": transcript_original,
             "transcript_english": transcript_english,
             "triggers": triggers,
-        }
+        },
+        json_dumps_params={"ensure_ascii": False},
     )
 
 

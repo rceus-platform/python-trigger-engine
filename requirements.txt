@@ -7,3 +7,7 @@ python-dotenv
 google-genai
 Django>=4.0
 gunicorn
+google-api-python-client 
+google-auth 
+google-auth-httplib2 
+google-auth-oauthlib

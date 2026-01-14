@@ -1,48 +1,24 @@
+import shutil
 import subprocess
 from pathlib import Path
 
-from core.utils.ffmpeg import get_ffmpeg_path
 
-
-def extract_audio(video_path: Path) -> Path:
-    print(">>> AUDIO EXTRACTION STARTED FOR:", video_path)
-
-    ffmpeg = get_ffmpeg_path()
-    video_path = Path(video_path).resolve()
-    audio_path = video_path.with_suffix(".mp3")
-
-    command = [
-        str(ffmpeg),
-        "-y",
-        "-i",
-        str(video_path),
-        "-vn",
-        "-ac",
-        "1",
-        "-ar",
-        "16000",
-        "-af",
-        "loudnorm",
-        "-t",
-        "45",
-        str(audio_path),
-    ]
-
-    subprocess.run(command, check=True)
-    print(">>> AUDIO EXTRACTED AT:", audio_path)
-
-    if not audio_path.exists():
-        raise RuntimeError("Audio extraction failed")
-
-    return audio_path
+def get_ffmpeg_path() -> str:
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError(
+            "ffmpeg not found in PATH. Install ffmpeg and restart the server."
+        )
+    return ffmpeg
 
 
 def extract_audio_for_gemini(video_path: Path) -> Path:
     ffmpeg = get_ffmpeg_path()
+
     audio_path = video_path.with_suffix(".wav")
 
     command = [
-        str(ffmpeg),
+        ffmpeg,
         "-y",
         "-i",
         str(video_path),
@@ -53,8 +29,19 @@ def extract_audio_for_gemini(video_path: Path) -> Path:
         "16000",
         "-t",
         "60",
-        audio_path,
+        str(audio_path),
     ]
 
-    subprocess.run(command, check=True)
+    result = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"ffmpeg failed\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
+
     return audio_path
