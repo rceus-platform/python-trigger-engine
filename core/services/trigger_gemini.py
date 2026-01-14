@@ -1,7 +1,6 @@
 import json
-import os
 
-from google import genai
+import google.generativeai as genai
 
 from core.constants import GEMINI_API_KEY
 

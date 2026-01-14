@@ -16,6 +16,9 @@ if os.path.exists(SECRET_PATH):
 else:
     # Fallback for local development
     load_dotenv()
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+    GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID")
 
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = "587"
