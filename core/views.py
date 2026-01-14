@@ -16,7 +16,9 @@ USE_GEMINI_ASR = True
 
 def health_check(request):
     """Health check endpoint"""
-    return JsonResponse({"status": "healthy", "message": "API is running"})
+    return JsonResponse(
+        {"status": "healthy", "message": "Trigger Engine API is running"}
+    )
 
 
 @csrf_exempt

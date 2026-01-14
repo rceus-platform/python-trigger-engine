@@ -17,19 +17,18 @@ jobs:
           envs: GITHUB_REPOSITORY,APP_SECRET_JSON_B64
           script: |
             set -e
-
             APP_NAME="$(basename $GITHUB_REPOSITORY)"
             SECRET_PATH="/opt/secrets/${APP_NAME}.json"
 
             sudo mkdir -p /opt/secrets
 
             echo "$APP_SECRET_JSON_B64" \
-              | base64 -d \
+              | base64 --decode \
               | sudo tee "$SECRET_PATH" > /dev/null
 
+            sudo chown ubuntu:ubuntu "$SECRET_PATH"
             sudo chmod 600 "$SECRET_PATH"
-            sudo chown root:root "$SECRET_PATH"
 
             sudo /opt/automation/create_app.sh "$APP_NAME"
-
-            echo "✅ App '$APP_NAME' provisioned successfully"
+        env:
+          APP_SECRET_JSON_B64: ${{ secrets.APP_SECRET_JSON_B64 }}
