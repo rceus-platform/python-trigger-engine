@@ -5,3 +5,4 @@ __pycache__/
 *local_env 
 *venv 
 *.venv 
+.env

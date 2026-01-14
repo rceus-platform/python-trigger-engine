@@ -1,0 +1,31 @@
+name: Create App on VM
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Read port
+        id: port
+        run: |
+          source helm-chart/deploy.env
+          echo "port=$PORT" >> $GITHUB_OUTPUT
+
+      - name: Create app on VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          envs: GITHUB_REPOSITORY
+          script: |
+            set -e
+            REPO_NAME="$(basename $GITHUB_REPOSITORY)"
+            sudo /opt/automation/create_app.sh "$REPO_NAME" "${{ steps.port.outputs.port }}"
+            echo "App creation script executed successfully."
