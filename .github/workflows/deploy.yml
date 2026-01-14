@@ -3,24 +3,31 @@ name: Deploy App
 on:
     push:
         branches:
-            - main
+            - develop
 
 jobs:
     deploy:
         runs-on: ubuntu-latest
 
         steps:
-            - name: Deploy to VM
+            - name: Deploy latest code
               uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.VM_HOST }}
                   username: ${{ secrets.VM_USER }}
                   key: ${{ secrets.VM_SSH_KEY }}
-                  envs: GITHUB_REPOSITORY
                   script: |
-                      set -e
-                      APP_NAME="$(basename $GITHUB_REPOSITORY)"
-                      cd /opt/apps/$APP_NAME
-                      git clean -fd
-                      git pull origin main
-                      sudo systemctl restart "$APP_NAME"
+                      APP_DIR=/opt/apps/${{ github.event.repository.name }}
+                      SERVICE_NAME=${{ github.event.repository.name }}.service
+
+                      cd $APP_DIR
+                      git pull origin develop
+
+                      source .venv/bin/activate
+                      pip install -r requirements.txt
+
+                      if [ -f manage.py ]; then
+                        python manage.py migrate --noinput
+                      fi
+
+                      sudo systemctl restart $SERVICE_NAME

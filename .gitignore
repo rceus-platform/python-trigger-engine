@@ -12,3 +12,4 @@ credentials/gdrive.json
 *.exe
 *.bin
 tools/
+secrets.dev.json
