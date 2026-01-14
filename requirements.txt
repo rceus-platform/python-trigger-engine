@@ -1,5 +1,5 @@
 django
-python-dotenv
-google-genai
+google-generativeai
 gunicorn
+python-dotenv
 uvicorn
