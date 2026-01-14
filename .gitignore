@@ -5,3 +5,10 @@ __pycache__/
 *local_env 
 *venv 
 *.venv 
+.env
+credentials/gdrive.json
+
+# binaries
+*.exe
+*.bin
+tools/
