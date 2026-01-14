@@ -1,13 +1,4 @@
 django
-pytest 
-requests
-yt-dlp
-openai-whisper
-torch
 python-dotenv
 google-generativeai
 gunicorn
-google-api-python-client 
-google-auth 
-google-auth-httplib2 
-google-auth-oauthlib
