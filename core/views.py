@@ -1,3 +1,4 @@
+import hashlib
 import json
 from datetime import date
 
@@ -25,6 +26,14 @@ def _error(message: str, status: int):
     return JsonResponse({"error": {"message": message}}, status=status)
 
 
+def hash_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 @csrf_exempt
 def process_reel(request):
     try:
@@ -47,9 +56,44 @@ def process_reel(request):
         if "instagram.com" not in url:
             return _error("Invalid Instagram URL", 400)
 
+        # --- Check cache by source URL ---
+        existing = ReelInsight.objects.filter(source_url=url).first()
+        if existing:
+            return JsonResponse(
+                {
+                    "status": "cached",
+                    "id": existing.id,
+                    "language": existing.original_language,
+                    "transcript_original": existing.transcript_original,
+                    "transcript_english": existing.transcript_english,
+                    "triggers": existing.triggers.split("\n"),
+                },
+                json_dumps_params={"ensure_ascii": False},
+            )
+
         # --- Download & audio extraction ---
         video_path = download_reel(url)
         audio_path = extract_audio_for_gemini(video_path)
+
+        # --- Check cache by audio hash ---
+        audio_hash = hash_file(audio_path)
+        existing = ReelInsight.objects.filter(audio_hash=audio_hash).first()
+        if existing:
+            return JsonResponse(
+                {
+                    "status": "cached",
+                    "id": existing.id,
+                    "language": existing.original_language,
+                    "transcript_original": existing.transcript_original,
+                    "transcript_english": existing.transcript_english,
+                    "triggers": existing.triggers.split("\n"),
+                },
+                json_dumps_params={"ensure_ascii": False},
+            )
+
+        # --- Basic audio validation ---
+        if audio_path.stat().st_size < 50_000:  # ~50KB
+            return _error("No speech detected in audio.", 400)
 
         # --- Gemini transcription ---
         try:
