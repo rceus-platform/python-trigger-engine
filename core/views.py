@@ -24,12 +24,16 @@ def process_reel(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=405)
 
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Missing 'url' field"}, status=400)
+    # Accept both HTML form and JSON
+    url = request.POST.get("url")
 
-    url = data.get("url")
+    if not url:
+        try:
+            data = json.loads(request.body or "{}")
+            url = data.get("url")
+        except json.JSONDecodeError:
+            url = None
+
     if not url:
         return JsonResponse({"error": "Missing 'url' field"}, status=400)
 

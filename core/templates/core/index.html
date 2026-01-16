@@ -80,7 +80,7 @@
         <h1>Trigger Engine</h1>
         <p>Paste an Instagram Reel URL to extract triggers</p>
 
-        <form method="post" action="/api/process-reel/">
+        <form id="reelForm">
             {% csrf_token %}
             <input type="url" name="url" placeholder="https://www.instagram.com/reel/..." required />
             <button type="submit">Process Reel</button>
@@ -89,7 +89,71 @@
         <div class="note">
             Audio is processed transiently. No media is stored.
         </div>
+        <div id="result" style="margin-top:24px; display:none;">
+            <h3 style="font-size:16px;">Result</h3>
+
+            <div id="meta"></div>
+            <div id="transcripts"></div>
+            <div id="triggers"></div>
+        </div>
+
     </div>
+    <script>
+        document.getElementById("reelForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const url = document.querySelector("input[name='url']").value;
+            const resultDiv = document.getElementById("result");
+            const metaDiv = document.getElementById("meta");
+            const transcriptsDiv = document.getElementById("transcripts");
+            const triggersDiv = document.getElementById("triggers");
+
+            resultDiv.style.display = "block";
+            metaDiv.innerHTML = "<p>Processing...</p>";
+            transcriptsDiv.innerHTML = "";
+            triggersDiv.innerHTML = "";
+
+            const response = await fetch("/api/process-reel/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ url }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                metaDiv.innerHTML = `<p style="color:red;">${data.error}</p>`;
+                return;
+            }
+
+            // Meta
+            metaDiv.innerHTML = `
+        <p><b>Status:</b> ${data.status}</p>
+        <p><b>ID:</b> ${data.id}</p>
+        <p><b>Language:</b> ${data.language}</p>
+    `;
+
+            // Transcripts
+            transcriptsDiv.innerHTML = `
+        <h4>Original Transcript</h4>
+        <p style="white-space:pre-wrap;">${data.transcript_original}</p>
+
+        <h4>English Transcript</h4>
+        <p style="white-space:pre-wrap;">${data.transcript_english}</p>
+    `;
+
+            // Triggers
+            triggersDiv.innerHTML = `
+        <h4>Behavior Triggers</h4>
+        <ul>
+            ${data.triggers.map(t => `<li>${t}</li>`).join("")}
+        </ul>
+    `;
+        });
+    </script>
+
 </body>
 
 </html>
