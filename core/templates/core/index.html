@@ -4,156 +4,311 @@
 <head>
     <meta charset="UTF-8" />
     <title>Trigger Engine</title>
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <style>
+        :root {
+            --bg: #0b1220;
+            --panel: #0f172a;
+            --muted: #94a3b8;
+            --text: #e5e7eb;
+            --accent: #3b82f6;
+            --border: #1e293b;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
+            margin: 0;
+            background: linear-gradient(180deg, #020617, #0b1220);
+            color: var(--text);
             font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #0f172a;
-            color: #e5e7eb;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 24px 16px 64px;
             display: flex;
             justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
         }
 
-        .container {
+        .app {
             width: 100%;
-            max-width: 520px;
-            background: #020617;
-            padding: 32px;
-            border-radius: 12px;
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+            max-width: 720px;
         }
 
-        h1 {
-            margin-top: 0;
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        header h1 {
             font-size: 22px;
-            text-align: center;
+            margin: 0;
+            font-weight: 600;
+            letter-spacing: 0.3px;
         }
 
-        p {
+        header p {
+            margin: 8px 0 0;
             font-size: 14px;
-            color: #94a3b8;
-            text-align: center;
+            color: var(--muted);
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         input[type="url"] {
             width: 100%;
-            padding: 12px;
-            margin-top: 16px;
-            border-radius: 6px;
-            border: none;
-            font-size: 14px;
+            padding: 14px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: #020617;
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        input::placeholder {
+            color: #64748b;
         }
 
         button {
-            width: 100%;
-            margin-top: 16px;
-            padding: 12px;
-            border-radius: 6px;
+            padding: 14px;
+            border-radius: 10px;
             border: none;
+            background: var(--accent);
+            color: white;
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            background: #2563eb;
-            color: white;
+            transition: opacity 0.2s ease;
         }
 
-        button:hover {
-            background: #1d4ed8;
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         .note {
-            margin-top: 16px;
+            margin-top: 12px;
             font-size: 12px;
-            color: #64748b;
+            color: var(--muted);
             text-align: center;
+        }
+
+        /* Result section */
+
+        #result {
+            margin-top: 28px;
+            display: none;
+            gap: 16px;
+        }
+
+        .section {
+            margin-top: 16px;
+        }
+
+        .section h3 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #c7d2fe;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .meta-box {
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 13px;
+        }
+
+        .meta-box span {
+            display: block;
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .triggers ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .triggers li {
+            margin-bottom: 8px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .transcript {
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+        .status {
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .status.processing {
+            color: var(--muted);
+        }
+
+        .status.error {
+            color: var(--error);
+        }
+
+        @media (max-width: 480px) {
+            .meta-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <h1>Trigger Engine</h1>
-        <p>Paste an Instagram Reel URL to extract triggers</p>
+    <div class="page">
+        <div class="app">
 
-        <form id="reelForm">
-            {% csrf_token %}
-            <input type="url" name="url" placeholder="https://www.instagram.com/reel/..." required />
-            <button type="submit">Process Reel</button>
-        </form>
+            <header>
+                <h1>Trigger Engine</h1>
+                <p>Convert Instagram reels into behavioral triggers</p>
+            </header>
 
-        <div class="note">
-            Audio is processed transiently. No media is stored.
+            <div class="card">
+                <form id="reelForm" class="input-group">
+                    <input type="url" name="url" placeholder="https://www.instagram.com/reel/..." required />
+                    <button id="submitBtn" type="submit">Process Reel</button>
+                </form>
+
+                <div class="note">
+                    Audio is processed transiently. No media is stored.
+                </div>
+            </div>
+
+            <div id="result" class="card">
+
+                <div id="status" class="status processing"></div>
+
+                <div class="section">
+                    <h3>Metadata</h3>
+                    <div class="meta-grid" id="meta"></div>
+                </div>
+
+                <div class="section triggers">
+                    <h3>Behavior Triggers</h3>
+                    <ul id="triggers"></ul>
+                </div>
+
+                <div class="section">
+                    <h3>Original Transcript</h3>
+                    <div class="transcript" id="original"></div>
+                </div>
+
+                <div class="section">
+                    <h3>English Transcript</h3>
+                    <div class="transcript" id="english"></div>
+                </div>
+
+            </div>
+
         </div>
-        <div id="result" style="margin-top:24px; display:none;">
-            <h3 style="font-size:16px;">Result</h3>
-
-            <div id="meta"></div>
-            <div id="transcripts"></div>
-            <div id="triggers"></div>
-        </div>
-
     </div>
+
     <script>
-        document.getElementById("reelForm").addEventListener("submit", async function (e) {
+        const form = document.getElementById("reelForm");
+        const result = document.getElementById("result");
+        const status = document.getElementById("status");
+        const meta = document.getElementById("meta");
+        const triggers = document.getElementById("triggers");
+        const original = document.getElementById("original");
+        const english = document.getElementById("english");
+        const button = document.getElementById("submitBtn");
+
+        form.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const url = document.querySelector("input[name='url']").value;
-            const resultDiv = document.getElementById("result");
-            const metaDiv = document.getElementById("meta");
-            const transcriptsDiv = document.getElementById("transcripts");
-            const triggersDiv = document.getElementById("triggers");
+            const url = form.url.value;
+            result.style.display = "block";
+            button.disabled = true;
+            status.textContent = "Processing… this can take up to a minute.";
+            status.className = "status processing";
 
-            resultDiv.style.display = "block";
-            metaDiv.innerHTML = "<p>Processing...</p>";
-            transcriptsDiv.innerHTML = "";
-            triggersDiv.innerHTML = "";
+            meta.innerHTML = "";
+            triggers.innerHTML = "";
+            original.textContent = "";
+            english.textContent = "";
 
-            const response = await fetch("/api/process-reel/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ url }),
-            });
+            try {
+                const res = await fetch("/api/process-reel/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url }),
+                });
 
-            const data = await response.json();
+                const data = await res.json();
 
-            if (!response.ok) {
-                metaDiv.innerHTML = `<p style="color:red;">${data.error}</p>`;
-                return;
+                if (!res.ok) {
+                    throw new Error(data.error || "Unknown error");
+                }
+
+                status.textContent = "Processing complete";
+                status.className = "status";
+
+                meta.innerHTML = `
+          <div class="meta-box"><span>Status</span>${data.status}</div>
+          <div class="meta-box"><span>Language</span>${data.language}</div>
+          <div class="meta-box"><span>ID</span>${data.id}</div>
+        `;
+
+                data.triggers.forEach(t => {
+                    const li = document.createElement("li");
+                    li.textContent = t;
+                    triggers.appendChild(li);
+                });
+
+                original.textContent = data.transcript_original;
+                english.textContent = data.transcript_english;
+
+            } catch (err) {
+                status.textContent = err.message;
+                status.className = "status error";
+            } finally {
+                button.disabled = false;
             }
-
-            // Meta
-            metaDiv.innerHTML = `
-        <p><b>Status:</b> ${data.status}</p>
-        <p><b>ID:</b> ${data.id}</p>
-        <p><b>Language:</b> ${data.language}</p>
-    `;
-
-            // Transcripts
-            transcriptsDiv.innerHTML = `
-        <h4>Original Transcript</h4>
-        <p style="white-space:pre-wrap;">${data.transcript_original}</p>
-
-        <h4>English Transcript</h4>
-        <p style="white-space:pre-wrap;">${data.transcript_english}</p>
-    `;
-
-            // Triggers
-            triggersDiv.innerHTML = `
-        <h4>Behavior Triggers</h4>
-        <ul>
-            ${data.triggers.map(t => `<li>${t}</li>`).join("")}
-        </ul>
-    `;
         });
     </script>
-
 </body>
 
 </html>
