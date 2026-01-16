@@ -17,19 +17,37 @@ jobs:
                   username: ${{ secrets.VM_USER }}
                   key: ${{ secrets.VM_SSH_KEY }}
                   script: |
-                      APP_DIR=/opt/apps/${{ github.event.repository.name }}
-                      SERVICE_NAME=${{ github.event.repository.name }}.service
+                      set -e
+
+                      APP_NAME=${{ github.event.repository.name }}
+                      APP_DIR=/opt/apps/$APP_NAME
+                      SERVICE_NAME=$APP_NAME.service
+
+                      echo "➡ Deploying $APP_NAME"
 
                       cd $APP_DIR
-                      git pull origin develop
 
-                      source .venv/bin/activate
-                      pip install -r requirements.txt
+                      echo "📥 Pulling code"
+                      git pull origin main
+
+                      echo "📦 Installing dependencies"
+                      $APP_DIR/.venv/bin/pip install -r requirements.txt
 
                       if [ -f manage.py ]; then
-                        python manage.py migrate --noinput
+                        echo "🧠 Django detected"
+                        $APP_DIR/.venv/bin/python manage.py migrate --noinput
+                        $APP_DIR/.venv/bin/python manage.py collectstatic --noinput
                       fi
 
+                      echo "🔁 Restarting service"
                       sudo systemctl daemon-reload
                       sudo systemctl restart $SERVICE_NAME
+
+                      echo "🌐 Reloading nginx"
                       sudo systemctl reload nginx
+
+                      echo "🩺 Verifying service"
+                      sleep 2
+                      sudo systemctl is-active --quiet $SERVICE_NAME
+
+                      echo "✅ Deploy completed successfully"
