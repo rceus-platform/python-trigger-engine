@@ -30,4 +30,6 @@ jobs:
                         python manage.py migrate --noinput
                       fi
 
+                      sudo systemctl daemon-reload
                       sudo systemctl restart $SERVICE_NAME
+                      sudo systemctl reload nginx
