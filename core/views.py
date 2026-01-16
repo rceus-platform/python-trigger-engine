@@ -2,6 +2,7 @@ import json
 from datetime import date
 
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import ReelInsight
@@ -14,11 +15,15 @@ from core.services.trigger_gemini import extract_triggers_gemini
 USE_GEMINI_ASR = True
 
 
-def health_check(request):
+def health_check():
     """Health check endpoint"""
     return JsonResponse(
         {"status": "healthy", "message": "Trigger Engine API is running"}
     )
+
+
+def home(request):
+    return render(request, "core/index.html")
 
 
 @csrf_exempt
