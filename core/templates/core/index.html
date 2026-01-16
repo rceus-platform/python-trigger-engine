@@ -68,10 +68,10 @@
             out.textContent = "Processing...";
 
             try {
-                const res = await fetch("/process-reel", {
+                const res = await fetch("/api/process-reel/", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ reel_url: url })
+                    body: JSON.stringify({ url: url })
                 });
 
                 const data = await res.json();

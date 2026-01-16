@@ -1,8 +1,8 @@
 from datetime import date
 
-from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 
+from core.constants import DAILY_RECALL_EMAIL, EMAIL_HOST_USER
 from core.services.recall import get_daily_triggers
 
 
@@ -35,8 +35,8 @@ def send_daily_recall_email():
     email = EmailMultiAlternatives(
         subject=subject,
         body=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[settings.DAILY_RECALL_EMAIL],
+        from_email=EMAIL_HOST_USER,
+        to=[DAILY_RECALL_EMAIL],
     )
 
     email.attach_alternative(html_body, "text/html")
