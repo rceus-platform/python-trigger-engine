@@ -12,71 +12,91 @@ from core.services.recall import get_daily_triggers
 from core.services.reel_downloader import download_reel
 from core.services.trigger_gemini import extract_triggers_gemini
 
-USE_GEMINI_ASR = True
-
 
 def ui_index(request):
     return render(request, "core/index.html")
 
 
+def _error(message: str, status: int):
+    """
+    Unified error response.
+    Always JSON. Safe for UI.
+    """
+    return JsonResponse({"error": {"message": message}}, status=status)
+
+
 @csrf_exempt
 def process_reel(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=405)
-
-    # Accept both HTML form and JSON
-    url = request.POST.get("url")
-
-    if not url:
-        try:
-            data = json.loads(request.body or "{}")
-            url = data.get("url")
-        except json.JSONDecodeError:
-            url = None
-
-    if not url:
-        return JsonResponse({"error": "Missing 'url' field"}, status=400)
-
-    if "instagram.com" not in url:
-        return JsonResponse({"error": "Invalid Instagram URL"}, status=400)
-
-    video_path = download_reel(url)
-
-    audio_path = extract_audio_for_gemini(video_path)
-    result = gemini_transcribe(str(audio_path))
-
-    language = result["language"]
-    transcript_original = result["transcript_native"]
-    transcript_english = result["transcript_english"]
-
-    # Triggers always from English
-    triggers = extract_triggers_gemini(transcript_english)
-
-    insight = ReelInsight.objects.create(
-        source_url=url,
-        original_language=language,
-        transcript_original=transcript_original,
-        transcript_english=transcript_english,
-        triggers="\n".join(triggers),
-    )
-
     try:
-        video_path.unlink(missing_ok=True)
-        audio_path.unlink(missing_ok=True)
-    except Exception as e:
-        print("Cleanup failed:", e)
+        if request.method != "POST":
+            return _error("POST required", 405)
 
-    return JsonResponse(
-        {
-            "status": "saved",
-            "id": insight.id,
-            "language": language,
-            "transcript_original": transcript_original,
-            "transcript_english": transcript_english,
-            "triggers": triggers,
-        },
-        json_dumps_params={"ensure_ascii": False},
-    )
+        # Accept both HTML form and JSON
+        url = request.POST.get("url")
+
+        if not url:
+            try:
+                data = json.loads(request.body or "{}")
+                url = data.get("url")
+            except json.JSONDecodeError:
+                url = None
+
+        if not url:
+            return _error("Missing 'url' field", 400)
+
+        if "instagram.com" not in url:
+            return _error("Invalid Instagram URL", 400)
+
+        # --- Download & audio extraction ---
+        video_path = download_reel(url)
+        audio_path = extract_audio_for_gemini(video_path)
+
+        # --- Gemini transcription ---
+        try:
+            result = gemini_transcribe(str(audio_path))
+        except RuntimeError as e:
+            # Quota / AI-level errors (user actionable)
+            return _error(str(e), 429)
+
+        language = result["language"]
+        transcript_original = result["transcript_native"]
+        transcript_english = result["transcript_english"]
+
+        # --- Trigger generation ---
+        triggers = extract_triggers_gemini(transcript_english)
+
+        # --- Persist ---
+        insight = ReelInsight.objects.create(
+            source_url=url,
+            original_language=language,
+            transcript_original=transcript_original,
+            transcript_english=transcript_english,
+            triggers="\n".join(triggers),
+        )
+
+        # --- Cleanup (best-effort) ---
+        try:
+            video_path.unlink(missing_ok=True)
+            audio_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+        # --- Success response ---
+        return JsonResponse(
+            {
+                "status": "saved",
+                "id": insight.id,
+                "language": language,
+                "transcript_original": transcript_original,
+                "transcript_english": transcript_english,
+                "triggers": triggers,
+            },
+            json_dumps_params={"ensure_ascii": False},
+        )
+
+    except Exception:
+        # Absolute safety net: NEVER leak HTML / stack traces
+        return _error("Internal processing error. Please try again later.", 500)
 
 
 def daily_recall(request):
@@ -92,7 +112,6 @@ def daily_recall(request):
 
 
 def health_check(request):
-    """Health check endpoint"""
     return JsonResponse(
         {"status": "healthy", "message": "Trigger Engine API is running"}
     )

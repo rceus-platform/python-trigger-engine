@@ -1,3 +1,4 @@
+import os
 import subprocess
 from pathlib import Path
 
@@ -11,16 +12,27 @@ def download_reel(url: str) -> Path:
     """
     output_template = MEDIA_DIR / "%(id)s.%(ext)s"
 
-    command = [
-        "yt-dlp",
-        "--cookies",
-        "/opt/cookies/instagram.txt",
-        "-f",
-        "best",
-        "-o",
-        str(output_template),
-        url,
-    ]
+    if os.environ["DEBUG"] == "True":
+        # In debug mode, skip cookies
+        command = [
+            "yt-dlp",
+            "-f",
+            "best",
+            "-o",
+            str(output_template),
+            url,
+        ]
+    else:
+        command = [
+            "yt-dlp",
+            "--cookies",
+            "/opt/cookies/instagram.txt",
+            "-f",
+            "best",
+            "-o",
+            str(output_template),
+            url,
+        ]
 
     result = subprocess.run(command, capture_output=True, text=True, check=False)
 

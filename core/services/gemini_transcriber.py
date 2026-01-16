@@ -2,6 +2,7 @@ import base64
 import json
 
 from google import genai
+from google.genai.errors import ClientError
 
 from core.constants import GEMINI_API_KEY
 
@@ -15,7 +16,7 @@ def gemini_transcribe(audio_path: str) -> dict:
     Returns:
     {
       "language": "hi" | "mr" | "en",
-      "transcript_devanagari": "...",
+      "transcript_native": "...",
       "transcript_english": "..."
     }
     """
@@ -44,22 +45,31 @@ Output STRICT JSON only in this format:
 }
 """
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=[
-            {
-                "role": "user",
-                "parts": [
-                    {
-                        "inline_data": {
-                            "mime_type": "audio/wav",
-                            "data": audio_b64,
-                        }
-                    },
-                    {"text": prompt},
-                ],
-            }
-        ],
-    )
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=[
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "inline_data": {
+                                "mime_type": "audio/wav",
+                                "data": audio_b64,
+                            }
+                        },
+                        {"text": prompt},
+                    ],
+                }
+            ],
+        )
 
-    return json.loads(response.text.strip())
+        return json.loads(response.text.strip())
+
+    except ClientError as e:
+        error_text = str(e)
+
+        if "RESOURCE_EXHAUSTED" in error_text or "Quota exceeded" in error_text:
+            raise RuntimeError("AI quota exceeded. Please retry after a few minutes.")
+
+        raise RuntimeError("AI processing failed. Please try again later.")

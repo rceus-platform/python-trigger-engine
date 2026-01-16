@@ -8,13 +8,12 @@
 
     <style>
         :root {
-            --bg: #0b1220;
+            --bg: #020617;
             --panel: #0f172a;
-            --muted: #94a3b8;
-            --text: #e5e7eb;
-            --accent: #3b82f6;
             --border: #1e293b;
-            --success: #22c55e;
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --accent: #3b82f6;
             --error: #ef4444;
         }
 
@@ -51,11 +50,10 @@
             font-size: 22px;
             margin: 0;
             font-weight: 600;
-            letter-spacing: 0.3px;
         }
 
         header p {
-            margin: 8px 0 0;
+            margin-top: 6px;
             font-size: 14px;
             color: var(--muted);
         }
@@ -65,20 +63,15 @@
             border: 1px solid var(--border);
             border-radius: 14px;
             padding: 20px;
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            margin-bottom: 20px;
         }
 
         input[type="url"] {
             width: 100%;
-            padding: 14px 14px;
+            padding: 14px;
             border-radius: 10px;
             border: 1px solid var(--border);
-            background: #020617;
+            background: var(--bg);
             color: var(--text);
             font-size: 15px;
         }
@@ -88,6 +81,8 @@
         }
 
         button {
+            width: 100%;
+            margin-top: 12px;
             padding: 14px;
             border-radius: 10px;
             border: none;
@@ -96,7 +91,6 @@
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.2s ease;
         }
 
         button:disabled {
@@ -111,23 +105,57 @@
             text-align: center;
         }
 
-        /* Result section */
+        /* Result */
 
         #result {
-            margin-top: 28px;
             display: none;
-            gap: 16px;
+        }
+
+        .status {
+            font-size: 14px;
+            color: var(--muted);
+            margin-bottom: 12px;
+        }
+
+        .loader {
+            height: 4px;
+            background: #020617;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .loader::before {
+            content: "";
+            display: block;
+            height: 100%;
+            width: 40%;
+            background: linear-gradient(90deg,
+                    transparent,
+                    var(--accent),
+                    transparent);
+            animation: loading 1.2s infinite;
+        }
+
+        @keyframes loading {
+            from {
+                transform: translateX(-100%);
+            }
+
+            to {
+                transform: translateX(300%);
+            }
         }
 
         .section {
-            margin-top: 16px;
+            margin-top: 18px;
         }
 
         .section h3 {
-            margin: 0 0 8px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #c7d2fe;
+            margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
@@ -139,7 +167,7 @@
         }
 
         .meta-box {
-            background: #020617;
+            background: var(--bg);
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 12px;
@@ -154,39 +182,25 @@
         }
 
         .triggers ul {
-            margin: 0;
             padding-left: 18px;
+            margin: 0;
         }
 
         .triggers li {
-            margin-bottom: 8px;
             font-size: 14px;
-            line-height: 1.4;
+            margin-bottom: 8px;
         }
 
         .transcript {
-            background: #020617;
+            background: var(--bg);
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 14px;
             font-size: 14px;
             line-height: 1.6;
             white-space: pre-wrap;
-            max-height: 280px;
+            max-height: 260px;
             overflow-y: auto;
-        }
-
-        .status {
-            font-size: 14px;
-            margin-top: 8px;
-        }
-
-        .status.processing {
-            color: var(--muted);
-        }
-
-        .status.error {
-            color: var(--error);
         }
 
         @media (max-width: 480px) {
@@ -207,40 +221,40 @@
             </header>
 
             <div class="card">
-                <form id="reelForm" class="input-group">
+                <form id="reelForm">
                     <input type="url" name="url" placeholder="https://www.instagram.com/reel/..." required />
                     <button id="submitBtn" type="submit">Process Reel</button>
                 </form>
-
                 <div class="note">
                     Audio is processed transiently. No media is stored.
                 </div>
             </div>
 
             <div id="result" class="card">
+                <div id="status" class="status"></div>
+                <div id="loader" class="loader"></div>
 
-                <div id="status" class="status processing"></div>
+                <div id="content" style="display:none;">
+                    <div class="section">
+                        <h3>Metadata</h3>
+                        <div class="meta-grid" id="meta"></div>
+                    </div>
 
-                <div class="section">
-                    <h3>Metadata</h3>
-                    <div class="meta-grid" id="meta"></div>
+                    <div class="section triggers">
+                        <h3>Behavior Triggers</h3>
+                        <ul id="triggers"></ul>
+                    </div>
+
+                    <div class="section">
+                        <h3>Original Transcript</h3>
+                        <div class="transcript" id="original"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3>English Transcript</h3>
+                        <div class="transcript" id="english"></div>
+                    </div>
                 </div>
-
-                <div class="section triggers">
-                    <h3>Behavior Triggers</h3>
-                    <ul id="triggers"></ul>
-                </div>
-
-                <div class="section">
-                    <h3>Original Transcript</h3>
-                    <div class="transcript" id="original"></div>
-                </div>
-
-                <div class="section">
-                    <h3>English Transcript</h3>
-                    <div class="transcript" id="english"></div>
-                </div>
-
             </div>
 
         </div>
@@ -248,50 +262,65 @@
 
     <script>
         const form = document.getElementById("reelForm");
+        const button = document.getElementById("submitBtn");
         const result = document.getElementById("result");
         const status = document.getElementById("status");
+        const loader = document.getElementById("loader");
+        const content = document.getElementById("content");
         const meta = document.getElementById("meta");
         const triggers = document.getElementById("triggers");
         const original = document.getElementById("original");
         const english = document.getElementById("english");
-        const button = document.getElementById("submitBtn");
+
+        const stages = [
+            "Downloading reel…",
+            "Extracting audio…",
+            "Transcribing speech…",
+            "Generating triggers…"
+        ];
+
+        let stageTimer;
 
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const url = form.url.value;
             result.style.display = "block";
+            content.style.display = "none";
+            loader.style.display = "block";
             button.disabled = true;
-            status.textContent = "Processing… this can take up to a minute.";
-            status.className = "status processing";
 
-            meta.innerHTML = "";
-            triggers.innerHTML = "";
-            original.textContent = "";
-            english.textContent = "";
+            let i = 0;
+            status.textContent = stages[0];
+            stageTimer = setInterval(() => {
+                status.textContent = stages[i++ % stages.length];
+            }, 3000);
 
             try {
                 const res = await fetch("/api/process-reel/", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url }),
+                    body: JSON.stringify({ url: form.url.value })
                 });
 
                 const data = await res.json();
 
                 if (!res.ok) {
-                    throw new Error(data.error || "Unknown error");
+                    throw new Error(
+                        data?.error?.message || "Something went wrong. Please try again."
+                    );
                 }
 
+                clearInterval(stageTimer);
+                loader.style.display = "none";
                 status.textContent = "Processing complete";
-                status.className = "status";
 
                 meta.innerHTML = `
+          <div class="meta-box"><span>ID</span>${data.id}</div>
           <div class="meta-box"><span>Status</span>${data.status}</div>
           <div class="meta-box"><span>Language</span>${data.language}</div>
-          <div class="meta-box"><span>ID</span>${data.id}</div>
         `;
 
+                triggers.innerHTML = "";
                 data.triggers.forEach(t => {
                     const li = document.createElement("li");
                     li.textContent = t;
@@ -300,10 +329,13 @@
 
                 original.textContent = data.transcript_original;
                 english.textContent = data.transcript_english;
+                content.style.display = "block";
 
             } catch (err) {
+                clearInterval(stageTimer);
+                loader.style.display = "none";
                 status.textContent = err.message;
-                status.className = "status error";
+                status.style.color = "var(--error)";
             } finally {
                 button.disabled = false;
             }
