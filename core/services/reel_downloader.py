@@ -13,8 +13,10 @@ def download_reel(url: str) -> Path:
 
     command = [
         "yt-dlp",
+        "--cookies",
+        "/opt/cookies/instagram.txt",
         "-f",
-        "mp4",
+        "best",
         "-o",
         str(output_template),
         url,
