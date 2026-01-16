@@ -82,7 +82,7 @@
 
         <form method="post" action="/api/process-reel/">
             {% csrf_token %}
-            <input type="url" name="reel_url" placeholder="https://www.instagram.com/reel/..." required />
+            <input type="url" name="url" placeholder="https://www.instagram.com/reel/..." required />
             <button type="submit">Process Reel</button>
         </form>
 
