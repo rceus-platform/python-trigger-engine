@@ -15,14 +15,14 @@ from core.services.trigger_gemini import extract_triggers_gemini
 USE_GEMINI_ASR = True
 
 
-def health_check():
+def health_check(request):
     """Health check endpoint"""
     return JsonResponse(
         {"status": "healthy", "message": "Trigger Engine API is running"}
     )
 
 
-def home(request):
+def ui_home(request):
     return render(request, "core/index.html")
 
 
