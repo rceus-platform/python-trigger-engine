@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Trigger Engine</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0f172a;
+            color: #e5e7eb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 520px;
+            background: #020617;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 22px;
+            text-align: center;
+        }
+
+        p {
+            font-size: 14px;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        input[type="url"] {
+            width: 100%;
+            padding: 12px;
+            margin-top: 16px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 6px;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #2563eb;
+            color: white;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .note {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #64748b;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Trigger Engine</h1>
+        <p>Paste an Instagram Reel URL to extract triggers</p>
+
+        <form method="post" action="/api/process-reel/">
+            {% csrf_token %}
+            <input type="url" name="reel_url" placeholder="https://www.instagram.com/reel/..." required />
+            <button type="submit">Process Reel</button>
+        </form>
+
+        <div class="note">
+            Audio is processed transiently. No media is stored.
+        </div>
+    </div>
+</body>
+
+</html>
