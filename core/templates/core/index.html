@@ -210,9 +210,54 @@
             overflow-y: auto;
         }
 
-        @media (max-width: 480px) {
+        /* @media (max-width: 480px) {
             .meta-grid {
                 grid-template-columns: 1fr;
+            }
+        } */
+
+        @media (max-width: 480px) {
+
+            /* Reduce outer padding */
+            .page {
+                padding: 12px 10px 24px;
+            }
+
+            /* Compress cards */
+            .card {
+                padding: 14px;
+                margin-bottom: 14px;
+            }
+
+            /* Reduce header footprint */
+            header {
+                margin-bottom: 12px;
+            }
+
+            header h1 {
+                font-size: 18px;
+            }
+
+            header p {
+                font-size: 12px;
+            }
+
+            /* Compact form controls */
+            input[type="url"] {
+                padding: 10px;
+                font-size: 16px;
+                /* keep iOS zoom fix */
+            }
+
+            button {
+                padding: 10px;
+                font-size: 14px;
+                margin-top: 8px;
+            }
+
+            .note {
+                font-size: 11px;
+                margin-top: 8px;
             }
         }
     </style>
