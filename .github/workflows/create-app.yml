@@ -30,5 +30,16 @@ jobs:
             sudo chmod 600 "$SECRET_PATH"
 
             sudo /opt/automation/create_app.sh "$APP_NAME"
+
+            # ---- CREATE SQLITE DB (ONE TIME) ----
+            APP_DIR="/opt/apps/$APP_NAME"
+
+            if [ -f "$APP_DIR/manage.py" ]; then
+              echo "🗄️ Creating SQLite DB via Django migrations"
+              cd "$APP_DIR"
+              source .venv/bin/activate
+              python manage.py migrate --noinput
+            fi
+            # ------------------------------------
         env:
           APP_SECRET_JSON_B64: ${{ secrets.APP_SECRET_JSON_B64 }}
