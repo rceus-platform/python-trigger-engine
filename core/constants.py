@@ -27,7 +27,7 @@ SECRET_PATH = "/opt/secrets/python-trigger-engine.json"
 
 if os.path.exists(SECRET_PATH):
     # --- Production (VM) secrets ---
-    with open(SECRET_PATH) as f:
+    with open(SECRET_PATH, encoding="utf-8") as f:
         _secrets = json.load(f)
 
     GEMINI_API_KEYS = [

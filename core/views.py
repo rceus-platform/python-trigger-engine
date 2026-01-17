@@ -7,7 +7,6 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import ReelInsight
-from core.services.asr.manager import ASRManager
 from core.services.audio_extractor import extract_audio_for_gemini
 from core.services.audio_hash import compute_audio_hash
 from core.services.gemini_transcriber import gemini_transcribe
@@ -186,7 +185,7 @@ def process_reel(request):
             logger.exception("Failed during cleanup")
 
 
-def daily_recall(request):
+def daily_recall():
     logger.info("daily_recall accessed")
     triggers = get_daily_triggers(limit=5)
 
@@ -199,7 +198,7 @@ def daily_recall(request):
     )
 
 
-def health_check(request):
+def health_check():
     return JsonResponse(
         {"status": "healthy", "message": "Trigger Engine API is running"}
     )

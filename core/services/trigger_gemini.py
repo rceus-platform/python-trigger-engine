@@ -13,25 +13,23 @@ KEY_COOLDOWN_SECONDS = 60 * 60  # 1 hour
 
 
 # ---- internal key state ----
-_key_index = 0
+_KEY_INDEX = {"value": 0}
 _key_cooldowns = {key: 0 for key in GEMINI_API_KEYS}
 
 
 def _get_next_key() -> str:
-    global _key_index
-
     now = time.time()
     checked = 0
 
     while checked < len(GEMINI_API_KEYS):
-        key = GEMINI_API_KEYS[_key_index]
-        _key_index = (_key_index + 1) % len(GEMINI_API_KEYS)
+        key = GEMINI_API_KEYS[_KEY_INDEX["value"]]
+        _KEY_INDEX["value"] = (_KEY_INDEX["value"] + 1) % len(GEMINI_API_KEYS)
         checked += 1
 
         if now >= _key_cooldowns[key]:
             return key
 
-    raise RuntimeError("All Gemini API keys exhausted for trigger generation")
+    raise RuntimeError("All Gemini API keys are exhausted. Please retry later.")
 
 
 def _cooldown_key(key: str):
@@ -106,7 +104,7 @@ TEXT:
                 continue
 
             logger.exception("Gemini trigger generation failed")
-            raise RuntimeError("Trigger generation failed")
+            raise RuntimeError("Trigger generation failed") from e
 
     raise RuntimeError(
         "All Gemini keys exhausted for trigger generation"
