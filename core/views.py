@@ -7,6 +7,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import ReelInsight
+from core.services.asr.manager import ASRManager
 from core.services.audio_extractor import extract_audio_for_gemini
 from core.services.audio_hash import compute_audio_hash
 from core.services.gemini_transcriber import gemini_transcribe

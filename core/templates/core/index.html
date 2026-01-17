@@ -289,11 +289,23 @@
             loader.style.display = "block";
             button.disabled = true;
 
-            let i = 0;
-            status.textContent = stages[0];
+            let stageIndex = 0;
+
+            status.textContent = stages[stageIndex];
+
             stageTimer = setInterval(() => {
-                status.textContent = stages[i++ % stages.length];
-            }, 3000);
+                if (stageIndex < stages.length - 1) {
+                    stageIndex += 1;
+                    status.textContent = stages[stageIndex];
+                }
+
+                // freeze on transcription stage
+                if (stageIndex >= 2) {
+                    clearInterval(stageTimer);
+                }
+            }, 4000);
+
+
 
             try {
                 const res = await fetch("/api/process-reel/", {

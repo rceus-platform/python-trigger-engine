@@ -3,3 +3,4 @@ google-genai
 gunicorn
 python-dotenv
 uvicorn
+deepgram-sdk
