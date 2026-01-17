@@ -1,0 +1,21 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h2 style="margin-top: 0;">New Reel Processed</h2>
+
+<p>
+    <strong>Language:</strong> {{ insight.original_language }}<br>
+    <strong>Source:</strong>
+    <a href="{{ insight.source_url }}" style="color:#3b82f6;">
+        View Reel
+    </a>
+</p>
+
+<h3 style="margin-top: 20px;">Behavior Triggers</h3>
+
+<ul>
+    {% for t in triggers %}
+    <li style="margin-bottom: 8px;">{{ t }}</li>
+    {% endfor %}
+</ul>
+{% endblock %}

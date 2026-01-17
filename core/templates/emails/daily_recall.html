@@ -1,0 +1,15 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h2 style="margin-top: 0;">Daily Recall</h2>
+
+<p>
+    <strong>{{ date }}</strong>
+</p>
+
+<ol>
+    {% for trigger in triggers %}
+    <li style="margin-bottom: 8px;">{{ trigger }}</li>
+    {% endfor %}
+</ol>
+{% endblock %}

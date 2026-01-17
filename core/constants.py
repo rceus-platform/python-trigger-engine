@@ -75,4 +75,7 @@ EMAIL_PORT = "587"
 EMAIL_USE_TLS = "True"
 EMAIL_HOST_USER = "inout440@gmail.com"
 
-DAILY_RECALL_EMAIL = "21rhi21@gmail.com"
+DAILY_RECALL_EMAILS = [
+    "21rhi21@gmail.com",
+    "rhishichikhalkar21@gmail.com",
+]

@@ -1,45 +1,36 @@
 from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 
-from core.constants import DAILY_RECALL_EMAIL, EMAIL_HOST_USER
+from core.constants import DAILY_RECALL_EMAILS, EMAIL_HOST_USER
 
 
 def send_new_reel_email(insight):
-    subject = "New Reel Processed"
+    subject = "TRIGGER ENGINE: New Reel Processed"
+
+    triggers = insight.triggers.splitlines()
 
     text_body = "\n".join(
         [
             "A new reel was processed.",
             "",
             "Triggers:",
-            *[f"- {t}" for t in insight.triggers.splitlines()],
+            *[f"- {t}" for t in triggers],
         ]
     )
 
-    html_body = f"""
-    <html>
-      <body style="font-family: Arial, sans-serif;">
-        <h2>New Reel Processed</h2>
-        <p><strong>Language:</strong> {insight.original_language}</p>
-        <p><strong>Source:</strong> <a href="{insight.source_url}">View Reel</a></p>
-
-        <h3>Triggers</h3>
-        <ul>
-          {"".join(f"<li>{t}</li>" for t in insight.triggers.splitlines())}
-        </ul>
-
-        <hr>
-        <p style="font-size:12px;color:#666;">
-          Immediate reinforcement.
-        </p>
-      </body>
-    </html>
-    """
+    html_body = render_to_string(
+        "emails/reel_processed.html",
+        {
+            "insight": insight,
+            "triggers": triggers,
+        },
+    )
 
     email = EmailMultiAlternatives(
         subject=subject,
         body=text_body,
         from_email=EMAIL_HOST_USER,
-        to=[DAILY_RECALL_EMAIL],
+        to=DAILY_RECALL_EMAILS,
     )
 
     email.attach_alternative(html_body, "text/html")

@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 
 from core.constants import (
-    DAILY_RECALL_EMAIL,
     EMAIL_HOST,
     EMAIL_HOST_PASSWORD,
     EMAIL_HOST_USER,
