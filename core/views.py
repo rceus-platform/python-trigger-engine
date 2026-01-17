@@ -1,4 +1,3 @@
-import hashlib
 import json
 from datetime import date
 
@@ -8,6 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.models import ReelInsight
 from core.services.audio_extractor import extract_audio_for_gemini
+from core.services.audio_hash import compute_audio_hash
 from core.services.gemini_transcriber import gemini_transcribe
 from core.services.recall import get_daily_triggers
 from core.services.reel_downloader import download_reel
@@ -24,14 +24,6 @@ def _error(message: str, status: int):
     Always JSON. Safe for UI.
     """
     return JsonResponse({"error": {"message": message}}, status=status)
-
-
-def hash_file(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 @csrf_exempt
@@ -76,7 +68,7 @@ def process_reel(request):
         audio_path = extract_audio_for_gemini(video_path)
 
         # --- Check cache by audio hash ---
-        audio_hash = hash_file(audio_path)
+        audio_hash = compute_audio_hash(audio_path)
         existing = ReelInsight.objects.filter(audio_hash=audio_hash).first()
         if existing:
             return JsonResponse(
@@ -118,13 +110,6 @@ def process_reel(request):
             triggers="\n".join(triggers),
         )
 
-        # --- Cleanup (best-effort) ---
-        try:
-            video_path.unlink(missing_ok=True)
-            audio_path.unlink(missing_ok=True)
-        except Exception:
-            pass
-
         # --- Success response ---
         return JsonResponse(
             {
@@ -141,6 +126,16 @@ def process_reel(request):
     except Exception:
         # Absolute safety net: NEVER leak HTML / stack traces
         return _error("Internal processing error. Please try again later.", 500)
+
+    finally:
+        # ALWAYS runs — success or failure
+        try:
+            if video_path:
+                video_path.unlink(missing_ok=True)
+            if audio_path:
+                audio_path.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def daily_recall(request):
