@@ -10,7 +10,9 @@ def send_email_on_new_reel(sender, instance, created, **kwargs):
     if not created:
         return
 
+    audio_path = getattr(instance, "_audio_path", None)
+
     try:
-        send_new_reel_email(instance)
+        send_new_reel_email(instance, audio_path=audio_path)
     except Exception as e:
         print("New reel email failed:", e)

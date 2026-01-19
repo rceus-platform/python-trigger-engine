@@ -148,6 +148,8 @@ def process_reel(request):
             transcript_english=transcript_english,
             triggers="\n".join(triggers),
         )
+        # Attach audio_path to instance for signal handler
+        insight._audio_path = str(audio_path)
         logger.info("Saved ReelInsight id=%s", insight.id)
 
         # --- Success ---
@@ -178,9 +180,6 @@ def process_reel(request):
             if video_path:
                 video_path.unlink(missing_ok=True)
                 logger.info("Cleaned up video file")
-            if audio_path:
-                audio_path.unlink(missing_ok=True)
-                logger.info("Cleaned up audio file")
         except Exception:
             logger.exception("Failed during cleanup")
 

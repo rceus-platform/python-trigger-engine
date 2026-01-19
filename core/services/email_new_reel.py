@@ -3,8 +3,10 @@ from django.template.loader import render_to_string
 
 from core.constants import DAILY_RECALL_EMAILS, EMAIL_HOST_USER
 
+from .email_utils import attach_audio_if_small
 
-def send_new_reel_email(insight):
+
+def send_new_reel_email(insight, audio_path: str | None = None):
     subject = "TRIGGER ENGINE: New Reel Processed"
 
     triggers = insight.triggers.splitlines()
@@ -18,14 +20,6 @@ def send_new_reel_email(insight):
         ]
     )
 
-    html_body = render_to_string(
-        "emails/reel_processed.html",
-        {
-            "insight": insight,
-            "triggers": triggers,
-        },
-    )
-
     email = EmailMultiAlternatives(
         subject=subject,
         body=text_body,
@@ -33,5 +27,17 @@ def send_new_reel_email(insight):
         to=DAILY_RECALL_EMAILS,
     )
 
+    audio_attached = attach_audio_if_small(email, audio_path)
+
+    html_body = render_to_string(
+        "emails/reel_processed.html",
+        {
+            "insight": insight,
+            "triggers": triggers,
+            "audio_attached": audio_attached,
+        },
+    )
+
     email.attach_alternative(html_body, "text/html")
+
     email.send()
