@@ -1,9 +1,13 @@
+import logging
+
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
 from core.constants import DAILY_RECALL_EMAILS, EMAIL_HOST_USER
 
 from .email_utils import attach_audio_if_small
+
+logger = logging.getLogger(__name__)
 
 
 def send_new_reel_email(insight, audio_path: str | None = None):
@@ -27,7 +31,9 @@ def send_new_reel_email(insight, audio_path: str | None = None):
         to=DAILY_RECALL_EMAILS,
     )
 
+    logger.info(f"Attempting to attach audio from: {audio_path}")
     audio_attached = attach_audio_if_small(email, audio_path)
+    logger.info(f"Audio attachment result: {audio_attached}")
 
     html_body = render_to_string(
         "emails/reel_processed.html",

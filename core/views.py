@@ -140,7 +140,8 @@ def process_reel(request):
 
         # --- Persist ---
         logger.info("Saving ReelInsight to DB")
-        insight = ReelInsight.objects.create(
+        # Create temporary object and set audio path before saving
+        insight = ReelInsight(
             source_url=url,
             audio_hash=audio_hash,
             original_language=language,
@@ -148,8 +149,9 @@ def process_reel(request):
             transcript_english=transcript_english,
             triggers="\n".join(triggers),
         )
-        # Attach audio_path to instance for signal handler
+        # Attach audio_path BEFORE saving (before signal fires)
         insight._audio_path = str(audio_path)
+        insight.save()  # This triggers the post_save signal
         logger.info("Saved ReelInsight id=%s", insight.id)
 
         # --- Success ---

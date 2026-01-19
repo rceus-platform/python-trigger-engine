@@ -17,3 +17,10 @@ secrets.dev.json
 # Local databases
 db.sqlite3
 *.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Media uploads
+media/
