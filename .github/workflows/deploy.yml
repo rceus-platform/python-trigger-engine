@@ -27,6 +27,10 @@ jobs:
 
                       cd $APP_DIR
 
+                      echo "🧹 Cleaning untracked files"
+                      git clean -fd
+                      git stash
+
                       echo "📥 Pulling code"
                       git pull origin main
 
