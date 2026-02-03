@@ -23,9 +23,6 @@ MANIFEST="$APP_DIR/codebuild/app.manifest.json"
 # ================================
 echo "➡ Creating app: $APP_NAME"
 
-mkdir -p "$APP_DIR" "$SECRETS_DIR"
-chown -R "$DEPLOY_USER:$DEPLOY_USER" "$APP_DIR" "$SECRETS_DIR"
-
 cd "$APP_DIR"
 
 # ================================
