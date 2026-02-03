@@ -17,8 +17,11 @@ jobs:
           envs: GITHUB_REPOSITORY,APP_SECRET_JSON_B64
           script: |
             set -e
+
             APP_NAME="$(basename $GITHUB_REPOSITORY)"
             SECRET_PATH="/opt/secrets/${APP_NAME}.json"
+
+            echo "➡ Injecting secrets for $APP_NAME"
 
             sudo mkdir -p /opt/secrets
 
@@ -29,17 +32,10 @@ jobs:
             sudo chown ubuntu:ubuntu "$SECRET_PATH"
             sudo chmod 600 "$SECRET_PATH"
 
-            sudo /opt/automation/create_app.sh "$APP_NAME"
+            echo "➡ Running repo-owned create_app.sh"
+            export APP_NAME
+            export APP_SECRET_PATH="$SECRET_PATH"
 
-            # ---- CREATE SQLITE DB (ONE TIME) ----
-            APP_DIR="/opt/apps/$APP_NAME"
-
-            if [ -f "$APP_DIR/manage.py" ]; then
-              echo "🗄️ Creating SQLite DB via Django migrations"
-              cd "$APP_DIR"
-              source .venv/bin/activate
-              python manage.py migrate --noinput
-            fi
-            # ------------------------------------
+            bash codebuild/create_app.sh
         env:
           APP_SECRET_JSON_B64: ${{ secrets.APP_SECRET_JSON_B64 }}

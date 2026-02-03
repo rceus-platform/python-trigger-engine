@@ -1,7 +1,0 @@
-{
-  "app_type": "django",
-  "protocol": "asgi",
-  "entrypoint": "trigger_engine",
-  "port": 8003,
-  "workers": 1
-}
