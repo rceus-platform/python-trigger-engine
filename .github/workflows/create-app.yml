@@ -46,6 +46,6 @@ jobs:
             export APP_SECRET_PATH="$SECRET_PATH"
             export GITHUB_REPOSITORY
 
-            sudo bash codebuild/create_app.sh
+            sudo -E bash codebuild/create_app.sh
         env:
           APP_SECRET_JSON_B64: ${{ secrets.APP_SECRET_JSON_B64 }}
