@@ -13,27 +13,12 @@ GITHUB_REPOSITORY="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY not set}"
 # ================================
 BASE_DIR="/opt/apps"
 APP_DIR="$BASE_DIR/$APP_NAME"
-SECRETS_DIR="/opt/secrets"
+MANIFEST="$APP_DIR/codebuild/app.manifest.json"
 DEPLOY_USER="ubuntu"
 
-MANIFEST="$APP_DIR/codebuild/app.manifest.json"
-
-# ================================
-# PREP
-# ================================
 echo "➡ Creating app: $APP_NAME"
 
 cd "$APP_DIR"
-
-# ================================
-# CLONE REPO
-# ================================
-if [ ! -d ".git" ]; then
-  echo "📥 Cloning repository"
-  git clone "https://github.com/${GITHUB_REPOSITORY}" .
-else
-  echo "📦 Repository already exists"
-fi
 
 # ================================
 # READ MANIFEST
@@ -62,36 +47,24 @@ cd "$APP_WORKDIR"
 # RUNTIME SETUP
 # ================================
 if [ "$RUNTIME" = "python" ]; then
-  echo "🐍 Setting up Python runtime"
-  python3 -m venv .venv
-  .venv/bin/pip install --upgrade pip
+  echo "🐍 Python setup"
+
+  if [ ! -d ".venv" ]; then
+    python3 -m venv .venv
+  fi
+
   .venv/bin/pip install -r requirements.txt
 
   if [ -f manage.py ]; then
-    echo "🗄️ Running Django migrations (SQLite creation)"
+    echo "🗄️ Running Django migrations"
     .venv/bin/python manage.py migrate --noinput
   fi
 fi
 
-if [ "$RUNTIME" = "node" ]; then
-  echo "🟢 Setting up Node runtime"
-  npm install
-  npm run build || true
-fi
-
-if [ "$RUNTIME" = "go" ]; then
-  echo "🐹 Building Go binary"
-  go build -o app
-fi
-
-if [ "$RUNTIME" = "java" ]; then
-  echo "☕ Java runtime assumed (no build step)"
-fi
-
 # ================================
-# SYSTEMD SERVICE
+# SYSTEMD (GENERATED)
 # ================================
-echo "⚙ Creating systemd service"
+echo "⚙ Generating systemd service"
 
 cat > "/etc/systemd/system/${APP_NAME}.service" <<EOF
 [Unit]
@@ -114,9 +87,9 @@ systemctl enable "${APP_NAME}"
 systemctl restart "${APP_NAME}"
 
 # ================================
-# NGINX CONFIG
+# NGINX (GENERATED)
 # ================================
-echo "🌐 Configuring nginx"
+echo "🌐 Generating nginx config"
 
 cat > "/etc/nginx/sites-available/${DOMAIN}" <<EOF
 server {
@@ -136,4 +109,4 @@ ln -sf "/etc/nginx/sites-available/${DOMAIN}" "/etc/nginx/sites-enabled/${DOMAIN
 nginx -t
 systemctl reload nginx
 
-echo "✅ App creation complete"
+echo "✅ App created successfully"
