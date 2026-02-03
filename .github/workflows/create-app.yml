@@ -19,11 +19,13 @@ jobs:
             set -e
 
             APP_NAME="$(basename $GITHUB_REPOSITORY)"
+            APP_DIR="/opt/apps/$APP_NAME"
             SECRET_PATH="/opt/secrets/${APP_NAME}.json"
 
             echo "➡ Injecting secrets for $APP_NAME"
 
-            sudo mkdir -p /opt/secrets
+            sudo mkdir -p /opt/secrets /opt/apps
+            sudo chown -R ubuntu:ubuntu /opt/apps
 
             echo "$APP_SECRET_JSON_B64" \
               | base64 --decode \
@@ -32,9 +34,17 @@ jobs:
             sudo chown ubuntu:ubuntu "$SECRET_PATH"
             sudo chmod 600 "$SECRET_PATH"
 
+            echo "➡ Cloning repository"
+            if [ ! -d "$APP_DIR/.git" ]; then
+              git clone "https://github.com/${GITHUB_REPOSITORY}" "$APP_DIR"
+            fi
+
             echo "➡ Running repo-owned create_app.sh"
+            cd "$APP_DIR"
+
             export APP_NAME
             export APP_SECRET_PATH="$SECRET_PATH"
+            export GITHUB_REPOSITORY
 
             bash codebuild/create_app.sh
         env:
