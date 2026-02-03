@@ -141,6 +141,9 @@ EMAIL_HOST_USER = EMAIL_HOST_USER
 EMAIL_HOST_PASSWORD = EMAIL_HOST_PASSWORD
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
 # Logging Configuration
 LOGGING = {
     "version": 1,
@@ -162,7 +165,7 @@ LOGGING = {
         },
         "file": {
             "class": "logging.FileHandler",
-            "filename": BASE_DIR / "debug.log",
+            "filename": LOG_DIR / "app.log",
             "formatter": "verbose",
         },
     },
@@ -170,10 +173,12 @@ LOGGING = {
         "django": {
             "handlers": ["console", "file"],
             "level": "INFO",
+            "propagate": False,
         },
         "core": {
             "handlers": ["console", "file"],
             "level": "DEBUG",
+            "propagate": False,
         },
     },
 }
