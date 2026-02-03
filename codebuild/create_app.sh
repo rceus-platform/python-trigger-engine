@@ -64,27 +64,25 @@ fi
 # ================================
 # SYSTEMD (GENERATED)
 # ================================
-echo "⚙ Generating systemd service"
-
 cat > "/etc/systemd/system/${APP_NAME}.service" <<EOF
 [Unit]
 Description=${APP_NAME}
 After=network.target
 
 [Service]
-User=${DEPLOY_USER}
+User=ubuntu
 WorkingDirectory=${APP_WORKDIR}
+
 Environment=APP_SECRET_JSON=${APP_SECRET_PATH}
+Environment=DJANGO_SETTINGS_MODULE=trigger_engine.settings
+Environment=PYTHONPATH=${APP_WORKDIR}
+
 ExecStart=${APP_WORKDIR}/${START_CMD}
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 EOF
-
-systemctl daemon-reload
-systemctl enable "${APP_NAME}"
-systemctl restart "${APP_NAME}"
 
 # ================================
 # NGINX (GENERATED)
