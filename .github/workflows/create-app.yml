@@ -39,13 +39,16 @@ jobs:
               git clone "https://github.com/${GITHUB_REPOSITORY}" "$APP_DIR"
             fi
 
-            echo "➡ Running repo-owned create_app.sh"
             cd "$APP_DIR"
 
+            echo "➡ Making create_app.sh executable"
+            chmod +x codebuild/create_app.sh
+
+            echo "➡ Running repo-owned create_app.sh"
             export APP_NAME
             export APP_SECRET_PATH="$SECRET_PATH"
-            export GITHUB_REPOSITORY
 
             sudo -E bash codebuild/create_app.sh
+
         env:
           APP_SECRET_JSON_B64: ${{ secrets.APP_SECRET_JSON_B64 }}
