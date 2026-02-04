@@ -22,6 +22,7 @@ jobs:
                       APP_NAME=${{ github.event.repository.name }}
                       APP_DIR=/opt/apps/$APP_NAME
                       SERVICE_NAME=$APP_NAME.service
+                      MANIFEST=$APP_DIR/codebuild/app.manifest.json
 
                       echo "➡ Deploying $APP_NAME"
 
@@ -34,13 +35,22 @@ jobs:
                       echo "📥 Pulling code"
                       git pull origin main
 
-                      echo "📦 Installing dependencies"
-                      $APP_DIR/.venv/bin/pip install -r requirements.txt
+                      if [ ! -f "$MANIFEST" ]; then
+                        echo "❌ Missing manifest: $MANIFEST"
+                        exit 1
+                      fi
 
-                      if [ -f manage.py ]; then
+                      WORKDIR=$(jq -r '.working_dir' "$MANIFEST")
+                      APP_WORKDIR="$APP_DIR/$WORKDIR"
+                      VENV="$APP_WORKDIR/.venv"
+
+                      echo "📦 Installing dependencies"
+                      $VENV/bin/pip install -r "$APP_WORKDIR/requirements.txt"
+
+                      if [ -f "$APP_WORKDIR/manage.py" ]; then
                         echo "🧠 Django detected"
-                        $APP_DIR/.venv/bin/python manage.py migrate --noinput
-                        $APP_DIR/.venv/bin/python manage.py collectstatic --noinput
+                        $VENV/bin/python "$APP_WORKDIR/manage.py" migrate --noinput
+                        $VENV/bin/python "$APP_WORKDIR/manage.py" collectstatic --noinput
                       fi
 
                       echo "🔁 Restarting service"
