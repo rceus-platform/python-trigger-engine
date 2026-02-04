@@ -1,0 +1,16 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="15" fill="#020617" stroke="#3b82f6" stroke-width="2"/>
+  
+  <!-- Trigger/activation symbol -->
+  <path d="M8 12h8l2-2h6v8h-6l-2-2H8v-4z" fill="#3b82f6"/>
+  
+  <!-- Sound waves -->
+  <path d="M18 8l4 4-4 4M22 6l4 4-4 4M26 4l4 4-4 4" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Behavioral dots (representing triggers) -->
+  <circle cx="10" cy="20" r="1.5" fill="#60a5fa"/>
+  <circle cx="14" cy="22" r="1.5" fill="#60a5fa"/>
+  <circle cx="18" cy="20" r="1.5" fill="#60a5fa"/>
+  <circle cx="22" cy="18" r="1.5" fill="#60a5fa"/>
+</svg>
