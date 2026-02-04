@@ -54,14 +54,19 @@ if [ "$RUNTIME" = "python" ]; then
   echo "🐍 Python setup"
 
   if [ ! -d ".venv" ]; then
-    python3 -m venv .venv
+    sudo -u "$DEPLOY_USER" python3 -m venv .venv
   fi
 
-  .venv/bin/pip install -r requirements.txt
+  sudo -u "$DEPLOY_USER" .venv/bin/pip install --upgrade pip
+  sudo -u "$DEPLOY_USER" .venv/bin/pip install -r requirements.txt
 
   if [ -f manage.py ]; then
     echo "🗄️ Running Django migrations"
-    .venv/bin/python manage.py migrate --noinput
+    sudo -u "$DEPLOY_USER" .venv/bin/python manage.py migrate --noinput
+    if [ -f "db.sqlite3" ]; then
+      chown "$DEPLOY_USER:$DEPLOY_USER" "db.sqlite3"
+      chmod 664 "db.sqlite3"
+    fi
   fi
 fi
 
@@ -76,6 +81,7 @@ After=network.target
 [Service]
 User=ubuntu
 WorkingDirectory=${APP_WORKDIR}
+UMask=0002
 
 Environment=APP_SECRET_JSON=${APP_SECRET_PATH}
 Environment=DJANGO_SETTINGS_MODULE=trigger_engine.settings
@@ -83,6 +89,7 @@ Environment=PYTHONPATH=${APP_WORKDIR}
 
 ExecStart=${APP_WORKDIR}/${START_CMD}
 Restart=always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
