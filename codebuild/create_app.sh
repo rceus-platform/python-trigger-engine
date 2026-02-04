@@ -43,6 +43,10 @@ fi
 
 cd "$APP_WORKDIR"
 
+# Ensure app dir is writable so new subdirs can be created at runtime
+chown -R "$DEPLOY_USER:$DEPLOY_USER" "$APP_WORKDIR"
+chmod -R u+rwX,g+rwX "$APP_WORKDIR"
+
 # ================================
 # RUNTIME SETUP
 # ================================
