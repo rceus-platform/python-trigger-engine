@@ -51,6 +51,17 @@ def gemini_transcribe(audio_path: str) -> dict:
     with open(audio_path, "rb") as f:
         audio_b64 = base64.b64encode(f.read()).decode()
 
+    # Best-effort MIME type based on file extension
+    lower_path = audio_path.lower()
+    if lower_path.endswith(".mp3"):
+        mime_type = "audio/mpeg"
+    elif lower_path.endswith(".wav"):
+        mime_type = "audio/wav"
+    elif lower_path.endswith(".m4a"):
+        mime_type = "audio/mp4"
+    else:
+        mime_type = "application/octet-stream"
+
     prompt = """
 You are a speech-to-text engine.
 
@@ -92,7 +103,7 @@ Output STRICT JSON only in this format:
                         "parts": [
                             {
                                 "inline_data": {
-                                    "mime_type": "audio/wav",
+                                    "mime_type": mime_type,
                                     "data": audio_b64,
                                 }
                             },
@@ -102,7 +113,16 @@ Output STRICT JSON only in this format:
                 ],
             )
 
-            return json.loads(response.text.strip())
+            response_text = response.text.strip() if response.text else ""
+            if not response_text:
+                logger.error("Gemini returned empty response text")
+                raise RuntimeError("AI returned empty response. Please try again.")
+
+            try:
+                return json.loads(response_text)
+            except json.JSONDecodeError as e:
+                logger.error("Gemini returned non-JSON response: %s", response_text[:500])
+                raise RuntimeError("AI returned invalid JSON. Please try again.") from e
 
         except ClientError as e:
             error_text = str(e)
