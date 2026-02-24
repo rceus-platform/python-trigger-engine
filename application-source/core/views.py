@@ -3,9 +3,10 @@
 import json
 import logging
 from datetime import date
+from pathlib import Path
 from typing import Any, cast
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
@@ -18,6 +19,7 @@ from core.services.reel_downloader import download_reel
 from core.services.trigger_gemini import extract_triggers_gemini
 
 logger = logging.getLogger(__name__)
+FAVICON_PATH = Path(__file__).resolve().parent.parent / "static" / "favicon.png"
 
 
 def ui_index(request):
@@ -25,6 +27,14 @@ def ui_index(request):
 
     logger.info("UI index accessed")
     return render(request, "core/index.html")
+
+
+def favicon(_request):
+    """Serve favicon without relying on external static setup."""
+
+    if not FAVICON_PATH.exists():
+        return HttpResponse(status=404)
+    return HttpResponse(FAVICON_PATH.read_bytes(), content_type="image/png")
 
 
 def _error(message: str, status: int):

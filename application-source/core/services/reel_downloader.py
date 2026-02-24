@@ -69,7 +69,8 @@ def download_reel(url: str) -> Path:
     else:
         if "empty media response" in last_stderr.lower():
             raise RuntimeError(
-                "Instagram blocked this reel for anonymous access. Provide cookies or use a public reel URL."
+                "Instagram blocked this reel for anonymous access. "
+                "Provide cookies or use a public reel URL."
             )
         raise RuntimeError("Failed to download Instagram reel")
 
