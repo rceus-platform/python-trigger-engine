@@ -14,6 +14,8 @@ from core.models import ReelInsight
 from core.services.audio_extractor import extract_audio_for_gemini
 from core.services.audio_hash import compute_audio_hash
 from core.services.gemini_transcriber import gemini_transcribe
+from core.services.post_gemini import extract_post_text
+from core.services.post_text_aggregator import download_instagram_post
 from core.services.recall import get_daily_triggers
 from core.services.reel_downloader import download_reel
 from core.services.trigger_gemini import extract_triggers_gemini
@@ -43,12 +45,17 @@ def _error(message: str, status: int):
     return JsonResponse({"error": {"message": message}}, status=status)
 
 
+def _is_instagram_post_url(url: str) -> bool:
+    return "/p/" in url
+
+
 @csrf_exempt
 def process_reel(request):
     """Process an Instagram reel and return extracted triggers."""
     # MUST exist for finally block
     video_path = None
     audio_path = None
+    image_paths: list[Path] = []
 
     logger.info("process_reel request started")
 
@@ -77,7 +84,7 @@ def process_reel(request):
             logger.warning("Invalid Instagram URL: %s", url)
             return _error("Invalid Instagram URL", 400)
 
-        logger.info("Processing reel URL: %s", url)
+        logger.info("Processing Instagram URL: %s", url)
 
         # --- Cache by source URL ---
         existing = cast(Any, ReelInsight).objects.filter(source_url=url).first()  # pylint: disable=no-member
@@ -95,61 +102,84 @@ def process_reel(request):
                 json_dumps_params={"ensure_ascii": False},
             )
 
-        # --- Download ---
-        logger.info("Downloading reel")
-        try:
-            video_path = download_reel(url)
-        except RuntimeError as e:
-            logger.warning("Reel download error: %s", e)
-            return _error(str(e), 400)
-        logger.info("Video downloaded to %s", video_path)
+        audio_hash = None
+        if _is_instagram_post_url(url):
+            logger.info("Detected Instagram post URL, downloading images")
+            try:
+                image_paths = download_instagram_post(url)
+            except RuntimeError as e:
+                logger.warning("Post download error: %s", e)
+                return _error(str(e), 400)
 
-        # --- Audio extraction ---
-        logger.info("Extracting audio")
-        audio_path = extract_audio_for_gemini(video_path)
-        logger.info("Audio extracted to %s", audio_path)
+            logger.info("Downloaded %s post images", len(image_paths))
 
-        # --- Audio hash ---
-        logger.info("Computing audio hash")
-        audio_hash = compute_audio_hash(audio_path)
-        logger.info("Audio hash: %s", audio_hash)
+            try:
+                result = extract_post_text(image_paths)
+            except RuntimeError as e:
+                logger.warning("Post text extraction error: %s", e)
+                return _error(str(e), 429)
 
-        existing = cast(Any, ReelInsight).objects.filter(audio_hash=audio_hash).first()  # pylint: disable=no-member
-        if existing:
-            logger.info("Cache hit by audio_hash (id=%s)", existing.pk)
-            return JsonResponse(
-                {
-                    "status": "cached",
-                    "id": existing.pk,
-                    "language": existing.original_language,
-                    "transcript_original": existing.transcript_original,
-                    "transcript_english": existing.transcript_english,
-                    "triggers": existing.triggers.split("\n"),
-                },
-                json_dumps_params={"ensure_ascii": False},
-            )
+            language = result["language"]
+            transcript_original = result["transcript_native"]
+            transcript_english = result["transcript_english"]
+        else:
+            # --- Download ---
+            logger.info("Downloading reel")
+            try:
+                video_path = download_reel(url)
+            except RuntimeError as e:
+                logger.warning("Reel download error: %s", e)
+                return _error(str(e), 400)
+            logger.info("Video downloaded to %s", video_path)
 
-        # --- Audio validation ---
-        size = audio_path.stat().st_size
-        logger.info("Audio size: %s bytes", size)
+            # --- Audio extraction ---
+            logger.info("Extracting audio")
+            audio_path = extract_audio_for_gemini(video_path)
+            logger.info("Audio extracted to %s", audio_path)
 
-        if size < 50_000:
-            logger.warning("Audio too small (%s bytes), likely no speech", size)
-            return _error("No speech detected in audio.", 400)
+            # --- Audio hash ---
+            logger.info("Computing audio hash")
+            audio_hash = compute_audio_hash(audio_path)
+            logger.info("Audio hash: %s", audio_hash)
 
-        # --- Gemini transcription ---
-        logger.info("Calling Gemini for transcription")
-        try:
-            result = gemini_transcribe(str(audio_path))
-        except RuntimeError as e:
-            logger.warning("Gemini error: %s", e)
-            return _error(str(e), 429)
+            existing = (
+                cast(Any, ReelInsight).objects.filter(audio_hash=audio_hash).first()
+            )  # pylint: disable=no-member
+            if existing:
+                logger.info("Cache hit by audio_hash (id=%s)", existing.pk)
+                return JsonResponse(
+                    {
+                        "status": "cached",
+                        "id": existing.pk,
+                        "language": existing.original_language,
+                        "transcript_original": existing.transcript_original,
+                        "transcript_english": existing.transcript_english,
+                        "triggers": existing.triggers.split("\n"),
+                    },
+                    json_dumps_params={"ensure_ascii": False},
+                )
 
-        logger.info("Gemini transcription completed")
+            # --- Audio validation ---
+            size = audio_path.stat().st_size
+            logger.info("Audio size: %s bytes", size)
 
-        language = result["language"]
-        transcript_original = result["transcript_native"]
-        transcript_english = result["transcript_english"]
+            if size < 50_000:
+                logger.warning("Audio too small (%s bytes), likely no speech", size)
+                return _error("No speech detected in audio.", 400)
+
+            # --- Gemini transcription ---
+            logger.info("Calling Gemini for transcription")
+            try:
+                result = gemini_transcribe(str(audio_path))
+            except RuntimeError as e:
+                logger.warning("Gemini error: %s", e)
+                return _error(str(e), 429)
+
+            logger.info("Gemini transcription completed")
+
+            language = result["language"]
+            transcript_original = result["transcript_native"]
+            transcript_english = result["transcript_english"]
 
         # --- Trigger generation ---
         logger.info("Generating behavior triggers")
@@ -167,8 +197,8 @@ def process_reel(request):
             transcript_english=transcript_english,
             triggers="\n".join(triggers),
         )
-        # Attach audio_path BEFORE saving (before signal fires)
-        setattr(insight, "audio_path_for_email", str(audio_path))
+        if audio_path:
+            setattr(insight, "audio_path_for_email", str(audio_path))
         insight.save()  # This triggers the post_save signal
         logger.info("Saved ReelInsight id=%s", insight.pk)
 
@@ -200,6 +230,10 @@ def process_reel(request):
             if video_path:
                 video_path.unlink(missing_ok=True)
                 logger.info("Cleaned up video file")
+            for image_path in image_paths:
+                image_path.unlink(missing_ok=True)
+            if image_paths:
+                logger.info("Cleaned up %s post images", len(image_paths))
         except Exception:  # pylint: disable=broad-exception-caught
             logger.exception("Failed during cleanup")
 

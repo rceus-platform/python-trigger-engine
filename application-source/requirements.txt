@@ -4,3 +4,4 @@ gunicorn
 python-dotenv
 uvicorn
 deepgram-sdk
+instaloader
