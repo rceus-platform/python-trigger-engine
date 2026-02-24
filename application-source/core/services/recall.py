@@ -1,3 +1,5 @@
+"""Utility helpers to surface recall behavior triggers."""
+
 from datetime import timedelta
 
 from django.utils.timezone import now
@@ -6,6 +8,7 @@ from core.models import ReelInsight
 
 
 def get_daily_triggers(limit: int = 5) -> list[str]:
+    """Collect the freshest non-duplicate triggers for the daily email."""
     today = now()
     collected = []
 
@@ -20,8 +23,9 @@ def get_daily_triggers(limit: int = 5) -> list[str]:
         if len(collected) >= limit:
             break
 
+        manager = getattr(ReelInsight, "objects")
         insights = (
-            ReelInsight.objects.filter(created_at__gte=since)
+            manager.filter(created_at__gte=since)
             .order_by("-created_at")
             .values_list("triggers", flat=True)
         )

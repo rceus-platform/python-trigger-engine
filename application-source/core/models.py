@@ -1,9 +1,10 @@
+"""Django models for storing reel insights."""
+
 from django.db import models
-from django.db.models.manager import Manager
 
 
 class ReelInsight(models.Model):
-    objects: Manager["ReelInsight"]
+    """Persistent metadata for a processed Instagram reel."""
 
     source_url = models.URLField()
     original_language = models.CharField(max_length=10)

@@ -1,3 +1,6 @@
+"""Rule-based helpers for deriving triggers from text."""
+
+
 def extract_triggers(text: str) -> list[str]:
     """
     Convert insight text into behavioral triggers.

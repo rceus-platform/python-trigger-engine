@@ -1,9 +1,13 @@
+"""Audio extraction helpers that wrap ffmpeg."""
+
 import shutil
 import subprocess
 from pathlib import Path
 
 
 def get_ffmpeg_path() -> str:
+    """Return the system ffmpeg path or raise if it cannot be found."""
+
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         raise RuntimeError(
@@ -40,16 +44,17 @@ def extract_audio_for_gemini(video_path: Path, bitrate: str = "64k") -> Path:
         str(audio_path),
     ]
 
-    result = subprocess.run(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"ffmpeg failed\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    try:
+        subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
         )
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"ffmpeg failed\nSTDOUT:\n{exc.stdout}\nSTDERR:\n{exc.stderr}"
+        ) from exc
 
     return audio_path

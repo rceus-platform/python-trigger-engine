@@ -1,16 +1,16 @@
+"""Email notifications for newly processed reels."""
+
 import logging
 
-from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
-from core.constants import DAILY_RECALL_EMAILS, EMAIL_HOST_USER
-
-from .email_utils import attach_audio_if_small
+from .email_utils import attach_audio_if_small, build_daily_email
 
 logger = logging.getLogger(__name__)
 
 
 def send_new_reel_email(insight, audio_path: str | None = None):
+    """Notify subscribers when a new reel has been processed."""
     subject = "TRIGGER ENGINE: New Reel Processed"
 
     triggers = insight.triggers.splitlines()
@@ -24,16 +24,14 @@ def send_new_reel_email(insight, audio_path: str | None = None):
         ]
     )
 
-    email = EmailMultiAlternatives(
-        subject=subject,
-        body=text_body,
-        from_email=EMAIL_HOST_USER,
-        to=DAILY_RECALL_EMAILS,
-    )
+    email = build_daily_email(subject, text_body)
 
-    logger.info(f"Attempting to attach audio from: {audio_path}")
-    audio_attached = attach_audio_if_small(email, audio_path)
-    logger.info(f"Audio attachment result: {audio_attached}")
+    logger.info("Attempting to attach audio from: %s", audio_path)
+    if audio_path:
+        audio_attached = attach_audio_if_small(email, audio_path)
+    else:
+        audio_attached = False
+    logger.info("Audio attachment result: %s", audio_attached)
 
     html_body = render_to_string(
         "emails/reel_processed.html",

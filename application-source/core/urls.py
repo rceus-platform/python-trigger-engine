@@ -1,3 +1,5 @@
+"""URL routes exposed by the core app."""
+
 from django.urls import path
 
 from . import views

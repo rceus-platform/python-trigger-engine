@@ -1,13 +1,15 @@
+"""Send daily recall emails to the configured distribution list."""
+
 from datetime import date
 
-from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
-from core.constants import DAILY_RECALL_EMAILS, EMAIL_HOST_USER
+from core.services.email_utils import build_daily_email
 from core.services.recall import get_daily_triggers
 
 
 def send_daily_recall_email():
+    """Send the daily recall email, returning True when something was sent."""
     triggers = get_daily_triggers(limit=5)
 
     if not triggers:
@@ -26,12 +28,7 @@ def send_daily_recall_email():
         },
     )
 
-    email = EmailMultiAlternatives(
-        subject=subject,
-        body=text_body,
-        from_email=EMAIL_HOST_USER,
-        to=DAILY_RECALL_EMAILS,
-    )
+    email = build_daily_email(subject, text_body)
 
     email.attach_alternative(html_body, "text/html")
     email.send()

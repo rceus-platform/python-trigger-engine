@@ -1,3 +1,5 @@
+"""Admin site registrations for core models."""
+
 from django.contrib import admin
 
 from .models import ReelInsight

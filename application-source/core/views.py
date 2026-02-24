@@ -1,6 +1,9 @@
+"""Views that power the Trigger Engine endpoints."""
+
 import json
 import logging
 from datetime import date
+from typing import Any, cast
 
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -18,20 +21,21 @@ logger = logging.getLogger(__name__)
 
 
 def ui_index(request):
+    """Render the single-page UI for the trigger engine."""
+
     logger.info("UI index accessed")
     return render(request, "core/index.html")
 
 
 def _error(message: str, status: int):
-    """
-    Unified error response.
-    Always JSON. Safe for UI.
-    """
+    """Create a consistent JSON error response."""
+
     return JsonResponse({"error": {"message": message}}, status=status)
 
 
 @csrf_exempt
 def process_reel(request):
+    """Process an Instagram reel and return extracted triggers."""
     # MUST exist for finally block
     video_path = None
     audio_path = None
@@ -66,13 +70,13 @@ def process_reel(request):
         logger.info("Processing reel URL: %s", url)
 
         # --- Cache by source URL ---
-        existing = ReelInsight.objects.filter(source_url=url).first()
+        existing = cast(Any, ReelInsight).objects.filter(source_url=url).first()  # pylint: disable=no-member
         if existing:
-            logger.info("Cache hit by source_url (id=%s)", existing.id)
+            logger.info("Cache hit by source_url (id=%s)", existing.pk)
             return JsonResponse(
                 {
                     "status": "cached",
-                    "id": existing.id,
+                    "id": existing.pk,
                     "language": existing.original_language,
                     "transcript_original": existing.transcript_original,
                     "transcript_english": existing.transcript_english,
@@ -83,7 +87,11 @@ def process_reel(request):
 
         # --- Download ---
         logger.info("Downloading reel")
-        video_path = download_reel(url)
+        try:
+            video_path = download_reel(url)
+        except RuntimeError as e:
+            logger.warning("Reel download error: %s", e)
+            return _error(str(e), 400)
         logger.info("Video downloaded to %s", video_path)
 
         # --- Audio extraction ---
@@ -96,13 +104,13 @@ def process_reel(request):
         audio_hash = compute_audio_hash(audio_path)
         logger.info("Audio hash: %s", audio_hash)
 
-        existing = ReelInsight.objects.filter(audio_hash=audio_hash).first()
+        existing = cast(Any, ReelInsight).objects.filter(audio_hash=audio_hash).first()  # pylint: disable=no-member
         if existing:
-            logger.info("Cache hit by audio_hash (id=%s)", existing.id)
+            logger.info("Cache hit by audio_hash (id=%s)", existing.pk)
             return JsonResponse(
                 {
                     "status": "cached",
-                    "id": existing.id,
+                    "id": existing.pk,
                     "language": existing.original_language,
                     "transcript_original": existing.transcript_original,
                     "transcript_english": existing.transcript_english,
@@ -150,16 +158,16 @@ def process_reel(request):
             triggers="\n".join(triggers),
         )
         # Attach audio_path BEFORE saving (before signal fires)
-        insight._audio_path = str(audio_path)
+        setattr(insight, "audio_path_for_email", str(audio_path))
         insight.save()  # This triggers the post_save signal
-        logger.info("Saved ReelInsight id=%s", insight.id)
+        logger.info("Saved ReelInsight id=%s", insight.pk)
 
         # --- Success ---
-        logger.info("process_reel completed successfully (id=%s)", insight.id)
+        logger.info("process_reel completed successfully (id=%s)", insight.pk)
         return JsonResponse(
             {
                 "status": "saved",
-                "id": insight.id,
+                "id": insight.pk,
                 "language": language,
                 "transcript_original": transcript_original,
                 "transcript_english": transcript_english,
@@ -168,7 +176,7 @@ def process_reel(request):
             json_dumps_params={"ensure_ascii": False},
         )
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         # FULL traceback here
         logger.exception("process_reel failed with unexpected error")
         return _error(
@@ -182,11 +190,13 @@ def process_reel(request):
             if video_path:
                 video_path.unlink(missing_ok=True)
                 logger.info("Cleaned up video file")
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.exception("Failed during cleanup")
 
 
 def daily_recall():
+    """Return the latest recall triggers in JSON."""
+
     logger.info("daily_recall accessed")
     triggers = get_daily_triggers(limit=5)
 
@@ -200,6 +210,8 @@ def daily_recall():
 
 
 def health_check():
+    """Report basic health status for the API."""
+
     return JsonResponse(
         {"status": "healthy", "message": "Trigger Engine API is running"}
     )

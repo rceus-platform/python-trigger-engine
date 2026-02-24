@@ -1,4 +1,7 @@
+"""Download utilities that fetch Instagram reels."""
+
 import logging
+import os
 import subprocess
 from pathlib import Path
 
@@ -19,44 +22,55 @@ def download_reel(url: str) -> Path:
 
     output_template = MEDIA_DIR / "%(id)s.%(ext)s"
 
-    # --- yt-dlp command selection ---
-    if DEBUG:
-        logger.info("DEBUG mode enabled — downloading without cookies")
-        command = [
-            "yt-dlp",
-            "-f",
-            "best",
-            "-o",
-            str(output_template),
-            url,
-        ]
-    else:
-        logger.info("PROD mode — downloading with cookies")
-        command = [
-            "yt-dlp",
-            "--cookies",
-            INSTAGRAM_COOKIES_PATH,
-            "-f",
-            "best",
-            "-o",
-            str(output_template),
-            url,
-        ]
+    base_command = [
+        "yt-dlp",
+        "-f",
+        "b",
+        "-o",
+        str(output_template),
+    ]
 
-    logger.debug("yt-dlp command: %s", " ".join(command))
+    command_variants: list[list[str]] = []
+    cookies_path = Path(INSTAGRAM_COOKIES_PATH)
+    if cookies_path.exists():
+        logger.info(
+            "Instagram cookies file found: trying cookie-authenticated download"
+        )
+        command_variants.append(
+            [*base_command, "--cookies", INSTAGRAM_COOKIES_PATH, url]
+        )
+    elif DEBUG:
+        browser = os.getenv("INSTAGRAM_COOKIES_BROWSER", "chrome")
+        logger.info("No cookies file found; trying browser cookies via: %s", browser)
+        command_variants.append([*base_command, "--cookies-from-browser", browser, url])
+    elif not DEBUG:
+        logger.warning(
+            "INSTAGRAM_COOKIES_PATH does not exist: %s", INSTAGRAM_COOKIES_PATH
+        )
 
-    # --- Execute download ---
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    command_variants.append([*base_command, url])
 
-    if result.returncode != 0:
+    last_stderr = ""
+    for command in command_variants:
+        logger.debug("yt-dlp command: %s", " ".join(command))
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            break
+
         logger.error("yt-dlp failed")
         logger.error("stdout: %s", result.stdout)
         logger.error("stderr: %s", result.stderr)
+        last_stderr = result.stderr
+    else:
+        if "empty media response" in last_stderr.lower():
+            raise RuntimeError(
+                "Instagram blocked this reel for anonymous access. Provide cookies or use a public reel URL."
+            )
         raise RuntimeError("Failed to download Instagram reel")
 
     # --- Locate downloaded file ---

@@ -1,3 +1,5 @@
+"""Management command that removes stale media files."""
+
 import time
 from pathlib import Path
 
@@ -7,6 +9,8 @@ MEDIA_DIR = Path("media")
 
 
 class Command(BaseCommand):
+    """Purge video/audio artifacts that live longer than an hour."""
+
     help = "Delete leftover media files older than 1 hour"
 
     def handle(self, *args, **options):

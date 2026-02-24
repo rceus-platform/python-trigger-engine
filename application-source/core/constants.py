@@ -1,3 +1,5 @@
+"""Central configuration constants for the Trigger Engine."""
+
 import json
 import os
 
@@ -50,6 +52,9 @@ else:
         os.getenv("GEMINI_API_KEY_1"),
         os.getenv("GEMINI_API_KEY_2"),
     ]
+
+
+GEMINI_API_KEY = next((key for key in GEMINI_API_KEYS if key), None)
 
 
 # ============================================================

@@ -1,39 +1,17 @@
+"""Gemini trigger generator with per-key cooldowns."""
+
 import logging
-import time
 
 from google import genai
 from google.genai.errors import ClientError
 
 from core.constants import GEMINI_API_KEYS
+from core.services.gemini_key_manager import GeminiKeyManager
 
 logger = logging.getLogger(__name__)
 
 MODEL = "models/gemini-2.5-flash-lite"
-KEY_COOLDOWN_SECONDS = 60 * 60  # 1 hour
-
-
-# ---- internal key state ----
-_KEY_INDEX = {"value": 0}
-_key_cooldowns = {key: 0 for key in GEMINI_API_KEYS}
-
-
-def _get_next_key() -> str:
-    now = time.time()
-    checked = 0
-
-    while checked < len(GEMINI_API_KEYS):
-        key = GEMINI_API_KEYS[_KEY_INDEX["value"]]
-        _KEY_INDEX["value"] = (_KEY_INDEX["value"] + 1) % len(GEMINI_API_KEYS)
-        checked += 1
-
-        if now >= _key_cooldowns[key]:
-            return key
-
-    raise RuntimeError("All Gemini API keys are exhausted. Please retry later.")
-
-
-def _cooldown_key(key: str):
-    _key_cooldowns[key] = time.time() + KEY_COOLDOWN_SECONDS
+KEY_MANAGER = GeminiKeyManager()
 
 
 def extract_triggers_gemini(transcript_english: str) -> list[str]:
@@ -59,8 +37,8 @@ TEXT:
 
     last_error = None
 
-    for _ in range(len(GEMINI_API_KEYS)):
-        api_key = _get_next_key()
+    for _ in range(KEY_MANAGER.key_count):
+        api_key = KEY_MANAGER.next_key()
         client = genai.Client(api_key=api_key)
 
         try:
@@ -91,7 +69,7 @@ TEXT:
                     "Gemini trigger quota exceeded for key",
                     extra={"key_index": GEMINI_API_KEYS.index(api_key)},
                 )
-                _cooldown_key(api_key)
+                KEY_MANAGER.cooldown_key(api_key)
                 continue
 
             # ---- INVALID KEY ----
@@ -100,7 +78,7 @@ TEXT:
                     "Gemini trigger API key invalid",
                     extra={"key_index": GEMINI_API_KEYS.index(api_key)},
                 )
-                _key_cooldowns[api_key] = float("inf")
+                KEY_MANAGER.disable_key(api_key)
                 continue
 
             logger.exception("Gemini trigger generation failed")
