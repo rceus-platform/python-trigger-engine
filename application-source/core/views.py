@@ -2,6 +2,7 @@
 
 import json
 import logging
+import traceback
 from datetime import date
 from pathlib import Path
 from typing import Any, cast
@@ -19,6 +20,7 @@ from core.services.post_text_aggregator import download_instagram_post
 from core.services.recall import get_daily_triggers
 from core.services.reel_downloader import download_reel
 from core.services.trigger_gemini import extract_triggers_gemini
+from core.services.email_error import send_error_email
 
 logger = logging.getLogger(__name__)
 FAVICON_PATH = Path(__file__).resolve().parent.parent / "static" / "favicon.png"
@@ -216,9 +218,20 @@ def process_reel(request):
             json_dumps_params={"ensure_ascii": False},
         )
 
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as e:  # pylint: disable=broad-exception-caught
         # FULL traceback here
         logger.exception("process_reel failed with unexpected error")
+        
+        # Send error alert email
+        try:
+            send_error_email(
+                url=url or "unknown",
+                error_message=str(e),
+                traceback_text=traceback.format_exc(),
+            )
+        except Exception:
+            logger.exception("Critical failure: Could not send error email either")
+
         return _error(
             "Internal processing error. Please try again later.",
             500,

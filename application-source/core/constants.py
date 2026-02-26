@@ -84,3 +84,9 @@ DAILY_RECALL_EMAILS = [
     "21rhi21@gmail.com",
     "rhishichikhalkar21@gmail.com",
 ]
+
+# Recipient(s) for technical error alerts
+ADMIN_EMAILS = [
+    "21rhi21@gmail.com",
+    "rhishichikhalkar21@gmail.com",
+]
