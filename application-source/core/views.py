@@ -100,6 +100,7 @@ def process_reel(request):
                     "transcript_original": existing.transcript_original,
                     "transcript_english": existing.transcript_english,
                     "triggers": existing.triggers.split("\n"),
+                    "title": existing.title,
                 },
                 json_dumps_params={"ensure_ascii": False},
             )
@@ -157,6 +158,7 @@ def process_reel(request):
                         "transcript_original": existing.transcript_original,
                         "transcript_english": existing.transcript_english,
                         "triggers": existing.triggers.split("\n"),
+                        "title": existing.title,
                     },
                     json_dumps_params={"ensure_ascii": False},
                 )
