@@ -242,7 +242,7 @@ def process_reel(request):
             logger.exception("Critical failure: Could not send error email either")
 
         return _error(
-            "Internal processing error. Please try again later.",
+            "This model is currently experiencing high demand. Try again after some time",
             500,
         )
 
