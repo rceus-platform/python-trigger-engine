@@ -13,7 +13,7 @@ def send_error_email(url: str, error_message: str, traceback_text: str):
     """Notify administrators about a processing failure."""
 
     subject = f"TRIGGER ENGINE ERROR: {url[:30]}..."
-    
+
     body = f"""
 Trigger Engine encountered an error while processing:
 URL: {url}

@@ -1,8 +1,13 @@
 """Download images from Instagram posts (single image or carousel)."""
 
+import logging
 from pathlib import Path
 
 import instaloader
+
+from core.services.instagram_auth import get_instaloader
+
+logger = logging.getLogger(__name__)
 
 MEDIA_DIR = Path(__file__).resolve().parent.parent.parent / "media"
 MEDIA_DIR.mkdir(exist_ok=True)
@@ -36,7 +41,8 @@ def _download_image(
 
 def download_instagram_post(post_url: str) -> list[Path]:
     """Download an Instagram post and return local image paths."""
-    loader = instaloader.Instaloader(download_videos=False)
+    loader = get_instaloader(download_videos=False)
+
     shortcode = _extract_shortcode(post_url)
     post = instaloader.Post.from_shortcode(loader.context, shortcode)
 

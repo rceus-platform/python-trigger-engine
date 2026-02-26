@@ -5,7 +5,10 @@ import os
 import subprocess
 from pathlib import Path
 
+import instaloader
+
 from core.constants import DEBUG, INSTAGRAM_COOKIES_PATH
+from core.services.instagram_auth import load_cookies_into_session
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +22,14 @@ def download_reel(url: str) -> Path:
     """
 
     logger.info("Starting reel download")
+
+    # --- Sanity check cookies using Instaloader (as requested) ---
+    temp_loader = instaloader.Instaloader()
+    cookies_valid = load_cookies_into_session(
+        temp_loader.context._session, Path(INSTAGRAM_COOKIES_PATH)
+    )
+    if not cookies_valid:
+        logger.warning("Reel download might fail due to missing/invalid cookies")
 
     output_template = MEDIA_DIR / "%(id)s.%(ext)s"
 
