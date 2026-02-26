@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 def send_new_reel_email(insight, audio_path: str | None = None):
     """Notify subscribers when a new reel has been processed."""
-    subject = "TRIGGER ENGINE: New Reel Processed"
+    heading = insight.title or "New Reel Processed"
+    subject = f"TRIGGER ENGINE: {heading}"
 
     triggers = insight.triggers.splitlines()
 
@@ -37,6 +38,7 @@ def send_new_reel_email(insight, audio_path: str | None = None):
         "emails/reel_processed.html",
         {
             "insight": insight,
+            "heading": heading,
             "triggers": triggers,
             "audio_attached": audio_attached,
         },

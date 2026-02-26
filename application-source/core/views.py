@@ -14,13 +14,13 @@ from django.views.decorators.csrf import csrf_exempt
 from core.models import ReelInsight
 from core.services.audio_extractor import extract_audio_for_gemini
 from core.services.audio_hash import compute_audio_hash
+from core.services.email_error import send_error_email
 from core.services.gemini_transcriber import gemini_transcribe
 from core.services.post_gemini import extract_post_text
 from core.services.post_text_aggregator import download_instagram_post
 from core.services.recall import get_daily_triggers
 from core.services.reel_downloader import download_reel
-from core.services.trigger_gemini import extract_triggers_gemini
-from core.services.email_error import send_error_email
+from core.services.trigger_gemini import extract_triggers_gemini, generate_reel_title
 
 logger = logging.getLogger(__name__)
 FAVICON_PATH = Path(__file__).resolve().parent.parent / "static" / "favicon.png"
@@ -188,6 +188,11 @@ def process_reel(request):
         triggers = extract_triggers_gemini(transcript_english)
         logger.info("Generated %s triggers", len(triggers))
 
+        # --- Title generation ---
+        logger.info("Generating reel title")
+        title = generate_reel_title(transcript_english)
+        logger.info("Generated title: %s", title)
+
         # --- Persist ---
         logger.info("Saving ReelInsight to DB")
         # Create temporary object and set audio path before saving
@@ -198,6 +203,7 @@ def process_reel(request):
             transcript_original=transcript_original,
             transcript_english=transcript_english,
             triggers="\n".join(triggers),
+            title=title,
         )
         if audio_path:
             setattr(insight, "audio_path_for_email", str(audio_path))
@@ -214,6 +220,7 @@ def process_reel(request):
                 "transcript_original": transcript_original,
                 "transcript_english": transcript_english,
                 "triggers": triggers,
+                "title": title,
             },
             json_dumps_params={"ensure_ascii": False},
         )
@@ -221,7 +228,7 @@ def process_reel(request):
     except Exception as e:  # pylint: disable=broad-exception-caught
         # FULL traceback here
         logger.exception("process_reel failed with unexpected error")
-        
+
         # Send error alert email
         try:
             send_error_email(

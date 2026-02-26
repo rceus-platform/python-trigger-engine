@@ -11,6 +11,7 @@ class ReelInsight(models.Model):
     transcript_original = models.TextField()
     transcript_english = models.TextField()
     triggers = models.TextField()
+    title = models.CharField(max_length=200, null=True, blank=True)
 
     audio_hash = models.CharField(
         max_length=64,
