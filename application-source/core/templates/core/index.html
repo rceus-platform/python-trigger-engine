@@ -289,6 +289,7 @@
                 <div id="loader" class="loader"></div>
 
                 <div id="content" style="display:none;">
+                    <h2 id="reelHeading" style="font-size: 18px; margin-bottom: 20px; color: var(--accent);"></h2>
                     <div class="section">
                         <h3>Metadata</h3>
                         <div class="meta-grid" id="meta"></div>
@@ -325,6 +326,7 @@
         const triggers = document.getElementById("triggers");
         const original = document.getElementById("original");
         const english = document.getElementById("english");
+        const reelHeading = document.getElementById("reelHeading");
 
         const stages = [
             "Downloading reel…",
@@ -379,6 +381,13 @@
                 clearInterval(stageTimer);
                 loader.style.display = "none";
                 status.textContent = "Processing complete";
+
+                if (data.title) {
+                    reelHeading.textContent = data.title;
+                    reelHeading.style.display = "block";
+                } else {
+                    reelHeading.style.display = "none";
+                }
 
                 meta.innerHTML = `
           <div class="meta-box"><span>ID</span>${data.id}</div>
