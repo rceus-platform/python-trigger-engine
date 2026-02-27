@@ -1,8 +1,7 @@
 """Send daily recall emails to the configured distribution list."""
 
-from datetime import date
-
 from django.template.loader import render_to_string
+from django.utils import timezone
 
 from core.services.email_utils import build_daily_email
 from core.services.recall import get_daily_triggers
@@ -15,7 +14,7 @@ def send_daily_recall_email():
     if not triggers:
         return False
 
-    today = date.today().isoformat()
+    today = timezone.localdate().isoformat()
     subject = f"Daily Recall — {today}"
 
     text_body = "\n".join([f"{i + 1}. {t}" for i, t in enumerate(triggers)])

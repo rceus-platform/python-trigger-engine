@@ -2,4 +2,4 @@
 # ------------------------------------
 # Schedule the recall emails 5 times daily: 9am, 12pm, 3pm, 6pm, 9pm.
 
-0 9,12,15,18,21 * * * cd /opt/apps/python-trigger-engine/application-source && ./.venv/bin/python manage.py send_daily_recall >> logs/cron.log 2>&1
+30 3,6,9,12,15 * * * cd /opt/apps/python-trigger-engine/application-source && ./.venv/bin/python manage.py send_daily_recall >> logs/cron.log 2>&1
