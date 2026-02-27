@@ -4,364 +4,458 @@
 <head>
     {% load static %}
     <meta charset="UTF-8" />
-    <title>Trigger Engine</title>
+    <title>Trigger Engine | Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.ico" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --bg: #020617;
-            --panel: #0f172a;
-            --border: #1e293b;
-            --text: #e5e7eb;
-            --muted: #94a3b8;
-            --accent: #3b82f6;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
             --error: #ef4444;
+            --accent: #818cf8;
+            --inner-bg: rgba(15, 23, 42, 0.6);
         }
 
         * {
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
         }
 
         body {
-            margin: 0;
-            background: linear-gradient(180deg, #020617, #0b1220);
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(168, 85, 247, 0.1) 0%, transparent 40%);
             color: var(--text);
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
             -webkit-font-smoothing: antialiased;
-        }
-
-        .page {
             min-height: 100vh;
-            padding: 24px 16px 64px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
         }
 
-        .app {
+        .container {
             width: 100%;
-            max-width: 720px;
+            max-width: 800px;
+            animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         header {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 3rem;
         }
 
         header h1 {
-            font-size: 22px;
-            margin: 0;
+            font-size: 2.5rem;
             font-weight: 600;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         header p {
-            margin-top: 6px;
-            font-size: 14px;
-            color: var(--muted);
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 300;
         }
 
-        .card {
-            background: var(--panel);
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 20px;
-            margin-bottom: 20px;
+            border-radius: 24px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .input-group {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         input[type="url"] {
             width: 100%;
-            padding: 14px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            background: var(--bg);
+            padding: 1rem 1.25rem;
+            border-radius: 14px;
+            border: 2px solid var(--border);
+            background: var(--inner-bg);
             color: var(--text);
-            font-size: 16px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.2s ease;
         }
 
-        input::placeholder {
-            color: #64748b;
+        input[type="url"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+            background: rgba(15, 23, 42, 0.8);
         }
 
-        button {
+        button#submitBtn {
             width: 100%;
-            margin-top: 12px;
-            padding: 14px;
-            border-radius: 10px;
-            border: none;
-            background: var(--accent);
+            padding: 1rem;
+            background: var(--primary);
             color: white;
-            font-size: 15px;
+            border: none;
+            border-radius: 14px;
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        button:disabled {
-            opacity: 0.6;
+        button#submitBtn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        }
+
+        button#submitBtn:active {
+            transform: translateY(0);
+        }
+
+        button#submitBtn:disabled {
+            opacity: 0.5;
             cursor: not-allowed;
+            transform: none !important;
         }
-
-        input,
-        textarea,
-        select {
-            font-size: 16px;
-        }
-
 
         .note {
-            margin-top: 12px;
-            font-size: 12px;
-            color: var(--muted);
+            margin-top: 1.25rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
             text-align: center;
         }
 
-        /* Result */
-
+        /* Result Section */
         #result {
             display: none;
+            animation: slideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .status {
-            font-size: 14px;
-            color: var(--muted);
-            margin-bottom: 12px;
-        }
-
-        .loader {
-            height: 4px;
-            background: #020617;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 20px;
-        }
-
-        .loader::before {
-            content: "";
-            display: block;
-            height: 100%;
-            width: 40%;
-            background: linear-gradient(90deg,
-                    transparent,
-                    var(--accent),
-                    transparent);
-            animation: loading 1.2s infinite;
-        }
-
-        @keyframes loading {
+        @keyframes slideIn {
             from {
-                transform: translateX(-100%);
+                opacity: 0;
+                transform: translateY(20px);
             }
 
             to {
-                transform: translateX(300%);
+                opacity: 1;
+                transform: translateY(0);
             }
         }
 
-        .section {
-            margin-top: 18px;
+        .status-container {
+            margin-bottom: 1.5rem;
         }
 
-        .section h3 {
-            font-size: 13px;
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        #statusText {
+            font-size: 0.95rem;
+            color: var(--accent);
             font-weight: 600;
-            color: #c7d2fe;
-            margin-bottom: 8px;
+        }
+
+        .loader-bar {
+            height: 6px;
+            background: var(--inner-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .loader-progress {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary), #c084fc);
+            transition: width 0.4s ease;
+        }
+
+        .result-content h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: white;
+            border-left: 4px solid var(--primary);
+            padding-left: 1rem;
+        }
+
+        .section-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--accent);
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
         }
 
         .meta-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
         }
 
         .meta-box {
-            background: var(--bg);
+            background: var(--inner-bg);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 12px;
-            font-size: 13px;
+            border-radius: 14px;
+            padding: 1rem;
+            transition: all 0.2s ease;
         }
 
-        .meta-box span {
+        .meta-box:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .meta-box label {
             display: block;
-            font-size: 11px;
-            color: var(--muted);
-            margin-bottom: 4px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
         }
 
-        .triggers ul {
-            padding-left: 18px;
-            margin: 0;
+        .meta-box value {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text);
         }
 
-        .triggers li {
-            font-size: 14px;
-            margin-bottom: 8px;
+        .triggers-list {
+            list-style: none;
+            margin-bottom: 2rem;
         }
 
-        .transcript {
-            background: var(--bg);
+        .trigger-item {
+            background: var(--inner-bg);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 14px;
-            font-size: 14px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-            max-height: 260px;
-            overflow-y: auto;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.2s ease;
         }
 
-        /* @media (max-width: 480px) {
-            .meta-grid {
-                grid-template-columns: 1fr;
-            }
-        } */
+        .trigger-item:hover {
+            transform: translateX(5px);
+            border-color: var(--primary);
+        }
 
-        @media (max-width: 480px) {
+        .trigger-icon {
+            color: var(--primary);
+            flex-shrink: 0;
+        }
 
-            /* Reduce outer padding */
-            .page {
-                padding: 12px 10px 24px;
-            }
+        .transcript-container {
+            background: var(--inner-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 2rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) transparent;
+        }
 
-            /* Compress cards */
-            .card {
-                padding: 14px;
-                margin-bottom: 14px;
-            }
+        .transcript-container::-webkit-scrollbar {
+            width: 4px;
+        }
 
-            /* Reduce header footprint */
-            header {
-                margin-bottom: 12px;
-            }
+        .transcript-container::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+        }
 
+        @media (max-width: 640px) {
             header h1 {
-                font-size: 18px;
+                font-size: 2rem;
             }
 
-            header p {
-                font-size: 12px;
-            }
-
-            /* Compact form controls */
-            input[type="url"] {
-                padding: 10px;
-                font-size: 16px;
-                /* keep iOS zoom fix */
-            }
-
-            button {
-                padding: 10px;
-                font-size: 11px;
-                margin-top: 8px;
-            }
-
-            .note {
-                font-size: 10px;
-                margin-top: 8px;
+            .glass-card {
+                padding: 1.5rem;
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="page">
-        <div class="app">
+    <div class="container">
+        <header>
+            <h1>Trigger Engine</h1>
+            <p>High-fidelity behavior extraction from social media</p>
+        </header>
 
-            <header>
-                <h1>Trigger Engine</h1>
-                <p>Convert Instagram reels into behavioral triggers</p>
-            </header>
-
-            <div class="card">
+        <main>
+            <div class="glass-card">
                 <form id="reelForm">
-                    <input type="url" name="url" placeholder="https://www.instagram.com/reel/..." required />
-                    <button id="submitBtn" type="submit">Process Reel</button>
+                    <div class="input-group">
+                        <input type="url" name="url" id="urlInput" placeholder="https://www.instagram.com/reel/..."
+                            required />
+                        <button id="submitBtn" type="submit">Process Intensity</button>
+                    </div>
                 </form>
                 <div class="note">
-                    Audio is processed transiently. No media is stored.
+                    <svg style="vertical-align: middle; margin-right: 4px;" width="14" height="14" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                    Processed transiently via Gemini Pro.
                 </div>
             </div>
 
-            <div id="result" class="card">
-                <div id="status" class="status"></div>
-                <div id="loader" class="loader"></div>
-
-                <div id="content" style="display:none;">
-                    <h2 id="reelHeading" style="font-size: 18px; margin-bottom: 20px; color: var(--accent);"></h2>
-                    <div class="section">
-                        <h3>Metadata</h3>
-                        <div class="meta-grid" id="meta"></div>
+            <div id="result" class="glass-card">
+                <div class="status-container" id="statusArea">
+                    <div class="status-header">
+                        <span id="statusText">Ready</span>
+                        <span id="percentText" style="font-size: 0.85rem; color: var(--text-muted)">0%</span>
                     </div>
-
-                    <div class="section triggers">
-                        <h3>Behavior Triggers</h3>
-                        <ul id="triggers"></ul>
+                    <div class="loader-bar">
+                        <div id="progressBar" class="loader-progress"></div>
                     </div>
+                </div>
+
+                <div id="content" style="display:none;" class="result-content">
+                    <h2 id="reelHeading"></h2>
 
                     <div class="section">
-                        <h3>Original Transcript</h3>
-                        <div class="transcript" id="original"></div>
+                        <div class="section-title">Analysis Metadata</div>
+                        <div class="meta-grid" id="metaGrid"></div>
                     </div>
 
                     <div class="section">
-                        <h3>English Transcript</h3>
-                        <div class="transcript" id="english"></div>
+                        <div class="section-title">Behavior Triggers</div>
+                        <div id="triggersList" class="triggers-list"></div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">Deep Transcription (Native)</div>
+                        <div class="transcript-container" id="transcriptOriginal"></div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">Intelligence Synthesis (English)</div>
+                        <div class="transcript-container" id="transcriptEnglish"></div>
                     </div>
                 </div>
             </div>
-
-        </div>
+        </main>
     </div>
 
     <script>
         const form = document.getElementById("reelForm");
         const button = document.getElementById("submitBtn");
         const result = document.getElementById("result");
-        const status = document.getElementById("status");
-        const loader = document.getElementById("loader");
+        const statusText = document.getElementById("statusText");
+        const percentText = document.getElementById("percentText");
+        const progressBar = document.getElementById("progressBar");
         const content = document.getElementById("content");
-        const meta = document.getElementById("meta");
-        const triggers = document.getElementById("triggers");
-        const original = document.getElementById("original");
-        const english = document.getElementById("english");
+        const metaGrid = document.getElementById("metaGrid");
+        const triggersList = document.getElementById("triggersList");
+        const transcriptOriginal = document.getElementById("transcriptOriginal");
+        const transcriptEnglish = document.getElementById("transcriptEnglish");
         const reelHeading = document.getElementById("reelHeading");
 
         const stages = [
-            "Downloading reel…",
-            "Extracting audio…",
-            "Transcribing speech…",
-            "Generating triggers…"
+            { text: "Acquiring Media", p: 15 },
+            { text: "Extracting Signal", p: 35 },
+            { text: "Analyzing Semantics", p: 65 },
+            { text: "Generating Triggers", p: 85 }
         ];
 
-        let stageTimer;
+        let currentProgress = 0;
+        let progressInterval;
+
+        function setProgress(percent, status) {
+            progressBar.style.width = percent + "%";
+            percentText.textContent = Math.round(percent) + "%";
+            if (status) statusText.textContent = status;
+        }
+
+        function simulateProgress() {
+            let stageIdx = 0;
+            currentProgress = 0;
+
+            progressInterval = setInterval(() => {
+                if (stageIdx < stages.length) {
+                    const stage = stages[stageIdx];
+                    if (currentProgress < stage.p) {
+                        currentProgress += 0.5;
+                        setProgress(currentProgress, stage.text);
+                    } else {
+                        stageIdx++;
+                    }
+                } else if (currentProgress < 98) {
+                    currentProgress += 0.1;
+                    setProgress(currentProgress, "Finalizing Analysis");
+                }
+            }, 100);
+        }
 
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
 
             result.style.display = "block";
             content.style.display = "none";
-            loader.style.display = "block";
+            document.getElementById("statusArea").style.display = "block";
             button.disabled = true;
+            statusText.style.color = "var(--accent)";
 
-            let stageIndex = 0;
-
-            status.textContent = stages[stageIndex];
-
-            stageTimer = setInterval(() => {
-                if (stageIndex < stages.length - 1) {
-                    stageIndex += 1;
-                    status.textContent = stages[stageIndex];
-                }
-
-                // freeze on transcription stage
-                if (stageIndex >= 2) {
-                    clearInterval(stageTimer);
-                }
-            }, 4000);
-
-
+            simulateProgress();
 
             try {
                 const res = await fetch("/api/process-reel/", {
@@ -373,44 +467,47 @@
                 const data = await res.json();
 
                 if (!res.ok) {
-                    throw new Error(
-                        data?.error?.message || "Something went wrong. Please try again."
-                    );
+                    throw new Error(data?.error?.message || "Analysis failed.");
                 }
 
-                clearInterval(stageTimer);
-                loader.style.display = "none";
-                status.textContent = "Processing complete";
+                clearInterval(progressInterval);
+                setProgress(100, "Analysis Complete");
 
-                if (data.title) {
-                    reelHeading.textContent = data.title;
-                    reelHeading.style.display = "block";
-                } else {
-                    reelHeading.style.display = "none";
-                }
+                setTimeout(() => {
+                    document.getElementById("statusArea").style.display = "none";
 
-                meta.innerHTML = `
-          <div class="meta-box"><span>ID</span>${data.id}</div>
-          <div class="meta-box"><span>Status</span>${data.status}</div>
-          <div class="meta-box"><span>Language</span>${data.language}</div>
-        `;
+                    if (data.title) {
+                        reelHeading.textContent = data.title;
+                        reelHeading.style.display = "block";
+                    }
 
-                triggers.innerHTML = "";
-                data.triggers.forEach(t => {
-                    const li = document.createElement("li");
-                    li.textContent = t;
-                    triggers.appendChild(li);
-                });
+                    metaGrid.innerHTML = `
+                        <div class="meta-box"><label>Source ID</label><value>${data.id}</value></div>
+                        <div class="meta-box"><label>Mode</label><value>${data.status.toUpperCase()}</value></div>
+                        <div class="meta-box"><label>Language</label><value>${data.language}</value></div>
+                    `;
 
-                original.textContent = data.transcript_original;
-                english.textContent = data.transcript_english;
-                content.style.display = "block";
+                    triggersList.innerHTML = "";
+                    data.triggers.forEach(t => {
+                        const div = document.createElement("div");
+                        div.className = "trigger-item";
+                        div.innerHTML = `
+                            <span class="trigger-icon">✦</span>
+                            <span>${t}</span>
+                        `;
+                        triggersList.appendChild(div);
+                    });
+
+                    transcriptOriginal.textContent = data.transcript_original;
+                    transcriptEnglish.textContent = data.transcript_english;
+                    content.style.display = "block";
+                }, 500);
 
             } catch (err) {
-                clearInterval(stageTimer);
-                loader.style.display = "none";
-                status.textContent = err.message;
-                status.style.color = "var(--error)";
+                clearInterval(progressInterval);
+                progressBar.style.backgroundColor = "var(--error)";
+                statusText.textContent = err.message;
+                statusText.style.color = "var(--error)";
             } finally {
                 button.disabled = false;
             }

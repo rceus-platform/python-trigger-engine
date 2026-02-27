@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PIN Entry | Trigger Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --error: #ef4444;
+            --inner-bg: rgba(15, 23, 42, 0.6);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(168, 85, 247, 0.15) 0%, transparent 50%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        .pin-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            padding: 3rem 2rem;
+            border-radius: 32px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-weight: 300;
+        }
+
+        .pin-inputs {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .pin-digit {
+            width: 60px;
+            height: 70px;
+            background: var(--inner-bg);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .pin-digit:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+            background: rgba(15, 23, 42, 0.8);
+            transform: translateY(-2px);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .submit-btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        }
+
+        .error-msg {
+            color: var(--error);
+            margin-top: 1.5rem;
+            font-size: 0.875rem;
+            background: rgba(239, 68, 68, 0.1);
+            padding: 0.75rem;
+            border-radius: 12px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="pin-card">
+        <div class="logo">Enter Passcode</div>
+        <p class="subtitle">Enter your 4-pin security code</p>
+
+        <form id="pinForm" method="POST">
+            {% csrf_token %}
+            <div class="pin-inputs">
+                <input type="password" maxlength="1" class="pin-digit" autocomplete="off" autofocus>
+                <input type="password" maxlength="1" class="pin-digit" autocomplete="off">
+                <input type="password" maxlength="1" class="pin-digit" autocomplete="off">
+                <input type="password" maxlength="1" class="pin-digit" autocomplete="off">
+            </div>
+            <input type="hidden" name="pin" id="pinHidden">
+            <button type="submit" class="submit-btn">Unlock Engine</button>
+
+            {% if error %}
+            <div class="error-msg">
+                {{ error }}
+            </div>
+            {% endif %}
+        </form>
+    </div>
+
+    <script>
+        const digits = document.querySelectorAll('.pin-digit');
+        const hiddenPin = document.getElementById('pinHidden');
+        const form = document.getElementById('pinForm');
+
+        digits.forEach((digit, index) => {
+            digit.addEventListener('input', (e) => {
+                if (e.target.value.length === 1 && index < digits.length - 1) {
+                    digits[index + 1].focus();
+                }
+            });
+
+            digit.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && e.target.value.length === 0 && index > 0) {
+                    digits[index - 1].focus();
+                }
+            });
+        });
+
+        form.addEventListener('submit', (e) => {
+            const pinVal = Array.from(digits).map(d => d.value).join('');
+            if (pinVal.length !== 4) {
+                e.preventDefault();
+                return;
+            }
+            hiddenPin.value = pinVal;
+        });
+    </script>
+</body>
+
+</html>

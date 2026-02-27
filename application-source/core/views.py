@@ -7,8 +7,9 @@ from datetime import date
 from pathlib import Path
 from typing import Any, cast
 
+from django.conf import settings
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import ReelInsight
@@ -29,8 +30,39 @@ FAVICON_PATH = Path(__file__).resolve().parent.parent / "static" / "favicon.png"
 def ui_index(request):
     """Render the single-page UI for the trigger engine."""
 
-    logger.info("UI index accessed")
+    # Check for either Django Auth or PIN Auth session
+    if not (request.user.is_authenticated or request.session.get("is_authenticated")):
+        return redirect("auth-gateway")
+
+    logger.info(
+        "UI index accessed by user: %s",
+        request.user.username if request.user.is_authenticated else "PIN-User",
+    )
     return render(request, "core/index.html")
+
+
+def auth_gateway(request):
+    """Entry point for users to choose their authentication method."""
+    if request.user.is_authenticated or request.session.get("is_authenticated"):
+        return redirect("ui-index")
+    return render(request, "core/auth_gateway.html")
+
+
+def login_passcode(request):
+    """Handle 4-pin passcode entry."""
+    if request.user.is_authenticated or request.session.get("is_authenticated"):
+        return redirect("ui-index")
+
+    error = None
+    if request.method == "POST":
+        pin = request.POST.get("pin")
+        if pin == settings.SITE_PASSCODE:
+            request.session["is_authenticated"] = True
+            return redirect("ui-index")
+        else:
+            error = "Invalid PIN"
+
+    return render(request, "core/passcode.html", {"error": error})
 
 
 def favicon(_request):
