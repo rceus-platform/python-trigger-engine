@@ -1,67 +1,79 @@
 name: Deploy App
 
 on:
-    push:
-        branches:
-            - main
+  push:
+    branches:
+      - main
 
 jobs:
-    deploy:
-        runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Deploy latest code
-              uses: appleboy/ssh-action@v1.0.3
-              with:
-                  host: ${{ secrets.VM_HOST }}
-                  username: ${{ secrets.VM_USER }}
-                  key: ${{ secrets.VM_SSH_KEY }}
-                  script: |
-                      set -e
+    steps:
+      - name: Deploy latest code
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          envs: GITHUB_REPOSITORY,APP_SECRET_JSON_B64
+          script: |
+            set -e
 
-                      APP_NAME=${{ github.event.repository.name }}
-                      APP_DIR=/opt/apps/$APP_NAME
-                      SERVICE_NAME=$APP_NAME.service
-                      MANIFEST=$APP_DIR/codebuild/app.manifest.json
+            APP_NAME="$(basename $GITHUB_REPOSITORY)"
+            APP_DIR="/opt/apps/$APP_NAME"
+            SERVICE_NAME=$APP_NAME.service
+            MANIFEST=$APP_DIR/codebuild/app.manifest.json
+            SECRET_PATH="/opt/secrets/${APP_NAME}.json"
 
-                      echo "➡ Deploying $APP_NAME"
+            echo "➡ Injecting secrets for $APP_NAME"
+            sudo mkdir -p /opt/secrets
+            echo "$APP_SECRET_JSON_B64" \
+              | base64 --decode \
+              | sudo tee "$SECRET_PATH" > /dev/null
+            sudo chown ubuntu:ubuntu "$SECRET_PATH"
+            sudo chmod 600 "$SECRET_PATH"
 
-                      cd $APP_DIR
+            echo "➡ Deploying $APP_NAME"
 
-                      echo "🧹 Cleaning untracked files"
-                      git clean -fd
-                      git stash
+            cd $APP_DIR
 
-                      echo "📥 Pulling code"
-                      git pull origin main
+            echo "🧹 Cleaning untracked files"
+            git clean -fd
+            git stash
 
-                      if [ ! -f "$MANIFEST" ]; then
-                        echo "❌ Missing manifest: $MANIFEST"
-                        exit 1
-                      fi
+            echo "📥 Pulling code"
+            git pull origin main
 
-                      WORKDIR=$(jq -r '.working_dir' "$MANIFEST")
-                      APP_WORKDIR="$APP_DIR/$WORKDIR"
-                      VENV="$APP_WORKDIR/.venv"
+            if [ ! -f "$MANIFEST" ]; then
+              echo "❌ Missing manifest: $MANIFEST"
+              exit 1
+            fi
 
-                      echo "📦 Installing dependencies"
-                      $VENV/bin/pip install -r "$APP_WORKDIR/requirements.txt"
+            WORKDIR=$(jq -r '.working_dir' "$MANIFEST")
+            APP_WORKDIR="$APP_DIR/$WORKDIR"
+            VENV="$APP_WORKDIR/.venv"
 
-                      if [ -f "$APP_WORKDIR/manage.py" ]; then
-                        echo "🧠 Django detected"
-                        $VENV/bin/python "$APP_WORKDIR/manage.py" migrate --noinput
-                        $VENV/bin/python "$APP_WORKDIR/manage.py" collectstatic --noinput
-                      fi
+            echo "📦 Installing dependencies"
+            $VENV/bin/pip install -r "$APP_WORKDIR/requirements.txt"
 
-                      echo "🔁 Restarting service"
-                      sudo systemctl daemon-reload
-                      sudo systemctl restart $SERVICE_NAME
+            if [ -f "$APP_WORKDIR/manage.py" ]; then
+              echo "🧠 Django detected"
+              $VENV/bin/python "$APP_WORKDIR/manage.py" migrate --noinput
+              $VENV/bin/python "$APP_WORKDIR/manage.py" collectstatic --noinput
+            fi
 
-                      echo "🌐 Reloading nginx"
-                      sudo systemctl reload nginx
+            echo "🔁 Restarting service"
+            sudo systemctl daemon-reload
+            sudo systemctl restart $SERVICE_NAME
 
-                      echo "🩺 Verifying service"
-                      sleep 2
-                      sudo systemctl is-active --quiet $SERVICE_NAME
+            echo "🌐 Reloading nginx"
+            sudo systemctl reload nginx
 
-                      echo "✅ Deploy completed successfully"
+            echo "🩺 Verifying service"
+            sleep 2
+            sudo systemctl is-active --quiet $SERVICE_NAME
+
+            echo "✅ Deploy completed successfully"
+        env:
+          APP_SECRET_JSON_B64: ${{ secrets.APP_SECRET_JSON_B64 }}

@@ -270,7 +270,7 @@ def process_reel(request):
                 error_message=str(e),
                 traceback_text=traceback.format_exc(),
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.exception("Critical failure: Could not send error email either")
 
         return _error(

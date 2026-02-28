@@ -102,8 +102,6 @@ CONTENT:
 {transcript_english}
 """
 
-    last_error = None
-
     for _ in range(KEY_MANAGER.key_count):
         api_key = KEY_MANAGER.next_key()
         client = genai.Client(api_key=api_key)
@@ -129,7 +127,6 @@ CONTENT:
 
         except ClientError as e:
             error_text = str(e)
-            last_error = e
 
             if "RESOURCE_EXHAUSTED" in error_text or "quota" in error_text.lower():
                 logger.warning(
