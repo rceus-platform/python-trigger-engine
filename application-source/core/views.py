@@ -5,12 +5,14 @@ import logging
 import traceback
 from datetime import date
 from pathlib import Path
-from typing import Any, cast
 
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django_q.tasks import async_task
 
 from core.models import ReelInsight
 from core.services.audio_extractor import extract_audio_for_gemini
@@ -20,7 +22,7 @@ from core.services.gemini_transcriber import gemini_transcribe
 from core.services.post_gemini import extract_post_text
 from core.services.post_text_aggregator import download_instagram_post
 from core.services.recall import get_daily_triggers
-from core.services.reel_downloader import download_reel
+from core.services.reel_downloader import download_reel, get_reel_metadata
 
 logger = logging.getLogger(__name__)
 FAVICON_PATH = Path(__file__).resolve().parent.parent / "static" / "favicon.png"
@@ -28,15 +30,8 @@ FAVICON_PATH = Path(__file__).resolve().parent.parent / "static" / "favicon.png"
 
 def ui_index(request):
     """Render the single-page UI for the trigger engine."""
-
-    # Check for either Django Auth or PIN Auth session
     if not (request.user.is_authenticated or request.session.get("is_authenticated")):
         return redirect("auth-gateway")
-
-    logger.info(
-        "UI index accessed by user: %s",
-        request.user.username if request.user.is_authenticated else "PIN-User",
-    )
     return render(request, "core/index.html")
 
 
@@ -60,21 +55,17 @@ def login_passcode(request):
             return redirect("ui-index")
         else:
             error = "Invalid PIN"
-
     return render(request, "core/passcode.html", {"error": error})
 
 
 def favicon(_request):
-    """Serve favicon without relying on external static setup."""
-
+    """Serve the favicon for the application."""
     if not FAVICON_PATH.exists():
         return HttpResponse(status=404)
     return HttpResponse(FAVICON_PATH.read_bytes(), content_type="image/png")
 
 
-def _error(message: str, status: int):
-    """Create a consistent JSON error response."""
-
+def _error(message: str, status: int = 400):
     return JsonResponse({"error": {"message": message}}, status=status)
 
 
@@ -82,217 +73,205 @@ def _is_instagram_post_url(url: str) -> bool:
     return "/p/" in url
 
 
-@csrf_exempt
-def process_reel(request):
-    """Process an Instagram reel and return extracted triggers."""
-    # MUST exist for finally block
+def background_process_reel(insight_id: int, url: str):
+    """Background task to process a reel/post."""
+    from core.services.email_new_reel import send_new_reel_email
+
+    insight = ReelInsight.objects.get(pk=insight_id)
     video_path = None
     audio_path = None
     image_paths: list[Path] = []
 
-    logger.info("process_reel request started")
-
     try:
-        # --- Method check ---
-        if request.method != "POST":
-            logger.warning("Invalid HTTP method: %s", request.method)
-            return _error("POST required", 405)
-
-        # --- Input parsing ---
-        url = request.POST.get("url")
-
-        if not url:
-            try:
-                data = json.loads(request.body or "{}")
-                url = data.get("url")
-            except json.JSONDecodeError:
-                logger.warning("Invalid JSON body")
-                url = None
-
-        if not url:
-            logger.warning("Missing URL in request")
-            return _error("Missing 'url' field", 400)
-
-        if "instagram.com" not in url:
-            logger.warning("Invalid Instagram URL: %s", url)
-            return _error("Invalid Instagram URL", 400)
-
-        logger.info("Processing Instagram URL: %s", url)
-
-        # --- Cache by source URL ---
-        existing = cast(Any, ReelInsight).objects.filter(source_url=url).first()  # pylint: disable=no-member
-        if existing:
-            logger.info("Cache hit by source_url (id=%s)", existing.pk)
-            return JsonResponse(
-                {
-                    "status": "cached",
-                    "id": existing.pk,
-                    "language": existing.original_language,
-                    "transcript_original": existing.transcript_original,
-                    "transcript_english": existing.transcript_english,
-                    "triggers": existing.triggers.split("\n"),
-                    "title": existing.title,
-                },
-                json_dumps_params={"ensure_ascii": False},
-            )
-
-        audio_hash = None
         if _is_instagram_post_url(url):
-            logger.info("Detected Instagram post URL, downloading images")
-            try:
-                image_paths = download_instagram_post(url)
-            except RuntimeError as e:
-                logger.warning("Post download error: %s", e)
-                return _error(str(e), 400)
-
-            logger.info("Downloaded %s post images", len(image_paths))
-
-            try:
-                result = extract_post_text(image_paths)
-            except RuntimeError as e:
-                logger.warning("Post text extraction error: %s", e)
-                return _error(str(e), 429)
-
+            image_paths = download_instagram_post(url)
+            result = extract_post_text(image_paths)
             language = result["language"]
             transcript_original = result["transcript_native"]
             transcript_english = result["transcript_english"]
-            triggers = result.get("triggers", [])
+            triggers_list = result.get("triggers", [])
             title = result.get("title", "New Post Processed")
         else:
-            # --- Download ---
-            logger.info("Downloading reel")
-            try:
-                video_path = download_reel(url)
-            except RuntimeError as e:
-                logger.warning("Reel download error: %s", e)
-                return _error(str(e), 400)
-            logger.info("Video downloaded to %s", video_path)
-
-            # --- Audio extraction ---
-            logger.info("Extracting audio")
+            video_path = download_reel(url)
             audio_path = extract_audio_for_gemini(video_path)
-            logger.info("Audio extracted to %s", audio_path)
-
-            # --- Audio hash ---
-            logger.info("Computing audio hash")
             audio_hash = compute_audio_hash(audio_path)
-            logger.info("Audio hash: %s", audio_hash)
 
+            # Secondary dedup check
             existing = (
-                cast(Any, ReelInsight).objects.filter(audio_hash=audio_hash).first()
-            )  # pylint: disable=no-member
+                ReelInsight.objects.filter(audio_hash=audio_hash)
+                .exclude(pk=insight_id)
+                .first()
+            )
             if existing:
-                logger.info("Cache hit by audio_hash (id=%s)", existing.pk)
+                logger.info(
+                    "Found duplicate by hash in background, switching to existing"
+                )
+                insight.original_language = existing.original_language
+                insight.transcript_original = existing.transcript_original
+                insight.transcript_english = existing.transcript_english
+                insight.triggers = existing.triggers
+                insight.title = existing.title
+                insight.processed_at = timezone.now()
+                insight.audio_hash = existing.audio_hash
+                insight.save()
+                return
+
+            result = gemini_transcribe(str(audio_path))
+            language = result["language"]
+            transcript_original = result["transcript_native"]
+            transcript_english = result["transcript_english"]
+            triggers_list = result.get("triggers", [])
+            title = result.get("title", "New Reel Processed")
+
+        insight.original_language = language
+        insight.transcript_original = transcript_original
+        insight.transcript_english = transcript_english
+        insight.triggers = "\n".join(triggers_list)
+        insight.title = title
+        insight.processed_at = timezone.now()
+
+        if audio_path:
+            insight.audio_hash = compute_audio_hash(audio_path)
+            setattr(insight, "audio_path_for_email", str(audio_path))
+
+        insight.save()
+
+        send_new_reel_email(insight, getattr(insight, "audio_path_for_email", None))
+        logger.info("Background processing complete for insight %s", insight_id)
+
+    except Exception as e:
+        logger.exception("Background task failed")
+        insight.delete()
+        send_error_email(
+            url=url, error_message=str(e), traceback_text=traceback.format_exc()
+        )
+    finally:
+        if video_path:
+            video_path.unlink(missing_ok=True)
+        for p in image_paths:
+            p.unlink(missing_ok=True)
+
+
+@csrf_exempt
+@require_POST
+def process_reel(request):
+    """API endpoint to initiate processing."""
+    try:
+        data = (
+            json.loads(request.body or "{}")
+            if request.content_type == "application/json"
+            else request.POST
+        )
+        url = data.get("url")
+
+        if not url or "instagram.com" not in url:
+            return _error("Valid Instagram URL required", 400)
+
+        # Cache check by URL
+        existing = ReelInsight.objects.filter(source_url=url).first()
+        if existing:
+            if existing.processed_at:
                 return JsonResponse(
                     {
                         "status": "cached",
                         "id": existing.pk,
-                        "language": existing.original_language,
+                        "title": existing.title,
+                        "triggers": existing.triggers.split("\n"),
                         "transcript_original": existing.transcript_original,
                         "transcript_english": existing.transcript_english,
-                        "triggers": existing.triggers.split("\n"),
-                        "title": existing.title,
-                    },
-                    json_dumps_params={"ensure_ascii": False},
+                        "language": existing.original_language,
+                    }
                 )
+            else:
+                # Already checking/processing
+                # If it's been stuck for over 5 minutes without completing, the worker likely crashed. Restart it.
+                if (timezone.now() - existing.created_at).total_seconds() > 300:
+                    async_task("core.views.background_process_reel", existing.pk, url)
+                return JsonResponse({"status": "processing", "id": existing.pk})
 
-            # --- Audio validation ---
-            size = audio_path.stat().st_size
-            logger.info("Audio size: %s bytes", size)
-
-            if size < 50_000:
-                logger.warning("Audio too small (%s bytes), likely no speech", size)
-                return _error("No speech detected in audio.", 400)
-
-            # --- Gemini transcription ---
-            logger.info("Calling Gemini for transcription")
+        # Metadata check (source_id)
+        source_id = None
+        if not _is_instagram_post_url(url):
             try:
-                result = gemini_transcribe(str(audio_path))
-            except RuntimeError as e:
-                logger.warning("Gemini error: %s", e)
-                return _error(str(e), 429)
+                meta = get_reel_metadata(url)
+                source_id = meta.get("id")
+                if source_id:
+                    existing = ReelInsight.objects.filter(source_id=source_id).first()
+                    if existing:
+                        if existing.processed_at:
+                            return JsonResponse(
+                                {
+                                    "status": "cached",
+                                    "id": existing.pk,
+                                    "title": existing.title,
+                                    "triggers": existing.triggers.split("\n"),
+                                    "transcript_original": existing.transcript_original,
+                                    "transcript_english": existing.transcript_english,
+                                    "language": existing.original_language,
+                                }
+                            )
+                        else:
+                            # If it's been stuck for over 5 minutes without completing, restart it.
+                            if (
+                                timezone.now() - existing.created_at
+                            ).total_seconds() > 300:
+                                async_task(
+                                    "core.views.background_process_reel",
+                                    existing.pk,
+                                    url,
+                                )
+                            return JsonResponse(
+                                {"status": "processing", "id": existing.pk}
+                            )
+            except Exception:
+                pass
 
-            logger.info("Gemini transcription completed")
-
-            language = result["language"]
-            transcript_original = result["transcript_native"]
-            transcript_english = result["transcript_english"]
-            triggers = result.get("triggers", [])
-            title = result.get("title", "New Reel Processed")
-
-        # Consolidated triggers and title are now part of the transcription/extraction result.
-
-        # --- Persist ---
-        logger.info("Saving ReelInsight to DB")
-        # Create temporary object and set audio path before saving
-        insight = ReelInsight(
+        # Create PENDING record
+        insight = ReelInsight.objects.create(
             source_url=url,
-            audio_hash=audio_hash,
-            original_language=language,
-            transcript_original=transcript_original,
-            transcript_english=transcript_english,
-            triggers="\n".join(triggers),
-            title=title,
-        )
-        if audio_path:
-            setattr(insight, "audio_path_for_email", str(audio_path))
-        insight.save()  # This triggers the post_save signal
-        logger.info("Saved ReelInsight id=%s", insight.pk)
-
-        # --- Success ---
-        logger.info("process_reel completed successfully (id=%s)", insight.pk)
-        return JsonResponse(
-            {
-                "status": "saved",
-                "id": insight.pk,
-                "language": language,
-                "transcript_original": transcript_original,
-                "transcript_english": transcript_english,
-                "triggers": triggers,
-                "title": title,
-            },
-            json_dumps_params={"ensure_ascii": False},
+            source_id=source_id,
+            title="Processing...",
+            transcript_original="Analysis in progress...",
+            transcript_english="Analysis in progress...",
+            triggers="Processing...",
         )
 
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        # FULL traceback here
-        logger.exception("process_reel failed with unexpected error")
+        # Enqueue background task
+        async_task("core.views.background_process_reel", insight.pk, url)
 
-        # Send error alert email
-        try:
-            send_error_email(
-                url=url or "unknown",
-                error_message=str(e),
-                traceback_text=traceback.format_exc(),
+        return JsonResponse({"status": "processing", "id": insight.pk})
+
+    except Exception as e:
+        logger.exception("process_reel endpoint failed")
+        return _error(str(e), 500)
+
+
+def check_task_status(_request, insight_id):
+    """API endpoint for frontend polling."""
+    try:
+        insight = ReelInsight.objects.get(pk=insight_id)
+        if insight.processed_at:
+            return JsonResponse(
+                {
+                    "status": "complete",
+                    "id": insight.pk,
+                    "title": insight.title,
+                    "triggers": insight.triggers.split("\n")
+                    if insight.triggers
+                    else [],
+                    "transcript_original": insight.transcript_original,
+                    "transcript_english": insight.transcript_english,
+                    "language": insight.original_language,
+                }
             )
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.exception("Critical failure: Could not send error email either")
-
-        return _error(
-            "This model is currently experiencing high demand. Try again after some time",
-            500,
-        )
-
-    finally:
-        # --- Cleanup ALWAYS ---
-        try:
-            if video_path:
-                video_path.unlink(missing_ok=True)
-                logger.info("Cleaned up video file")
-            for image_path in image_paths:
-                image_path.unlink(missing_ok=True)
-            if image_paths:
-                logger.info("Cleaned up %s post images", len(image_paths))
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.exception("Failed during cleanup")
+        return JsonResponse({"status": "processing"})
+    except ReelInsight.DoesNotExist:
+        return _error("Insight not found", 404)
 
 
-def daily_recall():
+def daily_recall(_request):
     """Return the latest recall triggers in JSON."""
-
-    logger.info("daily_recall accessed")
     triggers = get_daily_triggers(limit=5)
-
     return JsonResponse(
         {
             "date": date.today().isoformat(),
@@ -302,9 +281,8 @@ def daily_recall():
     )
 
 
-def health_check():
+def health_check(_request):
     """Report basic health status for the API."""
-
     return JsonResponse(
         {"status": "healthy", "message": "Trigger Engine API is running"}
     )

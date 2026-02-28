@@ -23,6 +23,7 @@ jobs:
             APP_NAME="$(basename $GITHUB_REPOSITORY)"
             APP_DIR="/opt/apps/$APP_NAME"
             SERVICE_NAME=$APP_NAME.service
+            QCLUSTER_SERVICE_NAME=$APP_NAME-qcluster.service
             MANIFEST=$APP_DIR/codebuild/app.manifest.json
             SECRET_PATH="/opt/secrets/${APP_NAME}.json"
 
@@ -61,11 +62,34 @@ jobs:
               echo "🧠 Django detected"
               $VENV/bin/python "$APP_WORKDIR/manage.py" migrate --noinput
               $VENV/bin/python "$APP_WORKDIR/manage.py" collectstatic --noinput
+              
+              echo "⚙️ Configuring qcluster service"
+              cat <<EOF | sudo tee /etc/systemd/system/$QCLUSTER_SERVICE_NAME > /dev/null
+            [Unit]
+            Description=${APP_NAME} QCluster Worker
+            After=network.target
+
+            [Service]
+            User=ubuntu
+            WorkingDirectory=${APP_WORKDIR}
+            UMask=0002
+            Environment=APP_SECRET_JSON=${SECRET_PATH}
+            Environment=DJANGO_SETTINGS_MODULE=trigger_engine.settings
+            Environment=PYTHONPATH=${APP_WORKDIR}
+            ExecStart=${VENV}/bin/python ${APP_WORKDIR}/manage.py qcluster
+            Restart=always
+            RestartSec=3
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
             fi
 
             echo "🔁 Restarting service"
             sudo systemctl daemon-reload
             sudo systemctl restart $SERVICE_NAME
+            sudo systemctl enable --now $QCLUSTER_SERVICE_NAME
+            sudo systemctl restart $QCLUSTER_SERVICE_NAME
 
             echo "🌐 Reloading nginx"
             sudo systemctl reload nginx
@@ -73,6 +97,7 @@ jobs:
             echo "🩺 Verifying service"
             sleep 2
             sudo systemctl is-active --quiet $SERVICE_NAME
+            sudo systemctl is-active --quiet $QCLUSTER_SERVICE_NAME
 
             echo "✅ Deploy completed successfully"
         env:

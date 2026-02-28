@@ -38,6 +38,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "192.168.1.3",
+    "0.0.0.0",
     ".rceus.duckdns.org",
 ]
 
@@ -51,6 +52,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_q",
     "core",
 ]
 
@@ -183,4 +185,14 @@ LOGGING = {
             "propagate": False,
         },
     },
+}
+
+# Django Q2 Configuration
+Q_CLUSTER = {
+    "name": "TriggerEngine",
+    "workers": 4,
+    "recycle": 500,
+    "timeout": 300,  # 5 minutes for heavy reels
+    "retry": 360,  # Retry must be > timeout
+    "orm": "default",
 }

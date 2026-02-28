@@ -499,41 +499,14 @@
                 const data = await res.json();
 
                 if (!res.ok) {
-                    throw new Error(data?.error?.message || "Analysis failed.");
+                    throw new Error(data?.error?.message || "Analysis initiation failed.");
                 }
 
-                clearInterval(progressInterval);
-                setProgress(100, "Analysis Complete");
-
-                setTimeout(() => {
-                    document.getElementById("statusArea").style.display = "none";
-
-                    if (data.title) {
-                        reelHeading.textContent = data.title;
-                        reelHeading.style.display = "block";
-                    }
-
-                    metaGrid.innerHTML = `
-                        <div class="meta-box"><label>Source ID</label><value>${data.id}</value></div>
-                        <div class="meta-box"><label>Mode</label><value>${data.status.toUpperCase()}</value></div>
-                        <div class="meta-box"><label>Language</label><value>${data.language}</value></div>
-                    `;
-
-                    triggersList.innerHTML = "";
-                    data.triggers.forEach(t => {
-                        const div = document.createElement("div");
-                        div.className = "trigger-item";
-                        div.innerHTML = `
-                            <span class="trigger-icon">✦</span>
-                            <span>${t}</span>
-                        `;
-                        triggersList.appendChild(div);
-                    });
-
-                    transcriptOriginal.textContent = data.transcript_original;
-                    transcriptEnglish.textContent = data.transcript_english;
-                    content.style.display = "block";
-                }, 500);
+                if (data.status === "cached") {
+                    displayResult(data);
+                } else {
+                    pollTaskStatus(data.id);
+                }
 
             } catch (err) {
                 clearInterval(progressInterval);
@@ -544,6 +517,72 @@
                 button.disabled = false;
             }
         });
+
+        async function pollTaskStatus(id) {
+            const maxPolls = 60; // 3 minutes
+            let polls = 0;
+
+            const interval = setInterval(async () => {
+                polls++;
+                try {
+                    const res = await fetch(`/api/task-status/${id}/`);
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        throw new Error(data.error || "Analysis failed. We've emailed you the error report.");
+                    }
+
+                    if (data.status === "complete") {
+                        clearInterval(interval);
+                        displayResult(data);
+                    } else if (polls >= maxPolls) {
+                        clearInterval(interval);
+                        throw new Error("Task timed out. Check your email later.");
+                    }
+                } catch (err) {
+                    clearInterval(interval);
+                    clearInterval(progressInterval);
+                    statusText.textContent = err.message;
+                    statusText.style.color = "var(--error)";
+                }
+            }, 3000);
+        }
+
+        function displayResult(data) {
+            clearInterval(progressInterval);
+            setProgress(100, "Analysis Complete");
+
+            setTimeout(() => {
+                document.getElementById("statusArea").style.display = "none";
+
+                if (data.title) {
+                    reelHeading.textContent = data.title;
+                    reelHeading.style.display = "block";
+                }
+
+                metaGrid.innerHTML = `
+                    <div class="meta-box"><label>Source ID</label><value>${data.id}</value></div>
+                    <div class="meta-box"><label>Mode</label><value>${data.status ? data.status.toUpperCase() : 'SAVED'}</value></div>
+                    <div class="meta-box"><label>Language</label><value>${data.language}</value></div>
+                `;
+
+                triggersList.innerHTML = "";
+                data.triggers.forEach(t => {
+                    if (!t.trim()) return;
+                    const div = document.createElement("div");
+                    div.className = "trigger-item";
+                    div.innerHTML = `
+                        <span class="trigger-icon">✦</span>
+                        <span>${t}</span>
+                    `;
+                    triggersList.appendChild(div);
+                });
+
+                transcriptOriginal.textContent = data.transcript_original;
+                transcriptEnglish.textContent = data.transcript_english;
+                content.style.display = "block";
+            }, 500);
+        }
     </script>
 </body>
 

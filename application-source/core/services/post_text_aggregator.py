@@ -49,7 +49,8 @@ def download_instagram_post(post_url: str) -> list[Path]:
     image_paths: list[Path] = []
 
     if post.typename == "GraphSidecar":
-        for index, node in enumerate(post.get_sidecar_nodes()):
+        nodes = list(post.get_sidecar_nodes())[:3]  # Speed Op: Limit to first 3
+        for index, node in enumerate(nodes):
             if node.is_video:
                 continue
             file_path = _download_image(

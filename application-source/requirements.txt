@@ -5,3 +5,7 @@ python-dotenv
 uvicorn
 deepgram-sdk
 instaloader
+yt-dlp
+django-q2
+django-picklefield
+ffmpeg-python

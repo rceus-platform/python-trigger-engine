@@ -4,7 +4,6 @@ import base64
 import json
 import logging
 
-from google import genai
 from google.genai.errors import ClientError
 
 from core.constants import GEMINI_API_KEYS
@@ -67,8 +66,7 @@ Output STRICT JSON only:
     last_error = None
 
     for _ in range(KEY_MANAGER.key_count):
-        api_key = KEY_MANAGER.next_key()
-        client = genai.Client(api_key=api_key)
+        api_key, client = KEY_MANAGER.get_client()
 
         try:
             logger.info(
@@ -100,7 +98,15 @@ Output STRICT JSON only:
                 raise RuntimeError("AI returned empty response. Please try again.")
 
             try:
-                return json.loads(response_text)
+                cleaned = response_text
+                if cleaned.startswith("```json"):
+                    cleaned = cleaned[7:]
+                elif cleaned.startswith("```"):
+                    cleaned = cleaned[3:]
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3]
+                cleaned = cleaned.strip()
+                return json.loads(cleaned)
             except json.JSONDecodeError as e:
                 logger.error(
                     "Gemini returned non-JSON response: %s", response_text[:500]

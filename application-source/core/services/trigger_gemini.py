@@ -38,8 +38,7 @@ TEXT:
     last_error = None
 
     for _ in range(KEY_MANAGER.key_count):
-        api_key = KEY_MANAGER.next_key()
-        client = genai.Client(api_key=api_key)
+        api_key, client = KEY_MANAGER.get_client()
 
         try:
             logger.info(

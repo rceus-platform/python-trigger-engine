@@ -17,5 +17,6 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("favicon.ico", views.favicon, name="favicon"),
     path("api/process-reel/", views.process_reel),
+    path("api/task-status/<int:insight_id>/", views.check_task_status),
     path("api/recall/daily/", views.daily_recall),
 ]

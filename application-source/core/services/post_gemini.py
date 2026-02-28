@@ -5,7 +5,6 @@ import logging
 from mimetypes import guess_type
 from pathlib import Path
 
-from google import genai
 from google.genai.errors import ClientError
 
 from core.constants import GEMINI_API_KEYS
@@ -96,15 +95,9 @@ Return STRICT JSON only:
     last_error = None
 
     for _ in range(KEY_MANAGER.key_count):
-        api_key = KEY_MANAGER.next_key()
-        client = genai.Client(api_key=api_key)
+        api_key, client = KEY_MANAGER.get_client()
 
         try:
-            logger.info(
-                "Gemini post text extraction attempt",
-                extra={"key_index": _safe_key_index(api_key)},
-            )
-
             response = client.models.generate_content(
                 model=MODEL,
                 contents=[{"role": "user", "parts": contents}],

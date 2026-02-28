@@ -95,9 +95,34 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 
+cat > "/etc/systemd/system/${APP_NAME}-qcluster.service" <<EOF
+[Unit]
+Description=${APP_NAME} QCluster Worker
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=${APP_WORKDIR}
+UMask=0002
+
+Environment=APP_SECRET_JSON=${APP_SECRET_PATH}
+Environment=DJANGO_SETTINGS_MODULE=trigger_engine.settings
+Environment=PYTHONPATH=${APP_WORKDIR}
+
+ExecStart=${APP_WORKDIR}/.venv/bin/python ${APP_WORKDIR}/manage.py qcluster
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 systemctl daemon-reload
 systemctl enable "${APP_NAME}"
 systemctl restart "${APP_NAME}"
+
+systemctl enable "${APP_NAME}-qcluster"
+systemctl restart "${APP_NAME}-qcluster"
 
 # ================================
 # NGINX (GENERATED)

@@ -10,5 +10,5 @@ class CoreConfig(AppConfig):
     name = "core"
 
     def ready(self):
-        # Signals must only be imported after the app registry is ready.
-        import core.signals as _signals  # noqa: F401  # pylint: disable=import-outside-toplevel,unused-import
+        """Register application components."""
+        pass
