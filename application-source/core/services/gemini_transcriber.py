@@ -41,23 +41,26 @@ def gemini_transcribe(audio_path: str) -> dict:
         mime_type = "application/octet-stream"
 
     prompt = """
-You are a speech-to-text engine.
+You are a behavioral coaching system and transcription engine.
 
-Rules:
-- Detect the spoken language (Hindi, Marathi, or English)
-- If Hindi or Marathi:
-  - Output transcript in DEVANAGARI script only
-  - Do NOT use Urdu or Roman script
-- Preserve English words if spoken
-- Also provide a clean English translation
-- Do NOT explain anything
+Tasks:
+1. Detect spoken language (Hindi, Marathi, or English).
+2. Transcribe audio:
+   - If Hindi or Marathi: Output in DEVANAGARI script.
+   - Preserve English words if spoken.
+3. Provide a clean English translation.
+4. Extract behavior triggers:
+   - Clear, actionable, short, and concrete.
+   - One trigger per line in the JSON array.
+5. Create a catchy title (max 5-6 words).
 
-Output STRICT JSON only in this format:
-
+Output STRICT JSON only:
 {
   "language": "hi|mr|en",
   "transcript_native": "...",
-  "transcript_english": "..."
+  "transcript_english": "...",
+  "triggers": ["...", "..."],
+  "title": "..."
 }
 """
 

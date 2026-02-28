@@ -21,7 +21,6 @@ from core.services.post_gemini import extract_post_text
 from core.services.post_text_aggregator import download_instagram_post
 from core.services.recall import get_daily_triggers
 from core.services.reel_downloader import download_reel
-from core.services.trigger_gemini import extract_triggers_gemini, generate_reel_title
 
 logger = logging.getLogger(__name__)
 FAVICON_PATH = Path(__file__).resolve().parent.parent / "static" / "favicon.png"
@@ -157,6 +156,8 @@ def process_reel(request):
             language = result["language"]
             transcript_original = result["transcript_native"]
             transcript_english = result["transcript_english"]
+            triggers = result.get("triggers", [])
+            title = result.get("title", "New Post Processed")
         else:
             # --- Download ---
             logger.info("Downloading reel")
@@ -216,16 +217,10 @@ def process_reel(request):
             language = result["language"]
             transcript_original = result["transcript_native"]
             transcript_english = result["transcript_english"]
+            triggers = result.get("triggers", [])
+            title = result.get("title", "New Reel Processed")
 
-        # --- Trigger generation ---
-        logger.info("Generating behavior triggers")
-        triggers = extract_triggers_gemini(transcript_english)
-        logger.info("Generated %s triggers", len(triggers))
-
-        # --- Title generation ---
-        logger.info("Generating reel title")
-        title = generate_reel_title(transcript_english)
-        logger.info("Generated title: %s", title)
+        # Consolidated triggers and title are now part of the transcription/extraction result.
 
         # --- Persist ---
         logger.info("Saving ReelInsight to DB")

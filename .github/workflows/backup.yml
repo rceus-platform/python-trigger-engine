@@ -1,0 +1,50 @@
+name: Database Backup
+
+on:
+    schedule:
+        - cron: "0 0 * * *" # Daily at midnight UTC
+    workflow_dispatch: # Allow manual trigger
+
+jobs:
+    backup:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Create Database Backup on VM
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.VM_HOST }}
+                  username: ${{ secrets.VM_USER }}
+                  key: ${{ secrets.VM_SSH_KEY }}
+                  script: |
+                      APP_NAME="python-trigger-engine"
+                      APP_DIR="/opt/apps/$APP_NAME"
+                      DB_PATH="$APP_DIR/application-source/db.sqlite3"
+                      BACKUP_DIR="/tmp/backups"
+                      TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                      BACKUP_FILE="$BACKUP_DIR/db_backup_$TIMESTAMP.sqlite3.gz"
+
+                      mkdir -p $BACKUP_DIR
+
+                      # Using gzip directly for simplicity, but redirecting SQLite leads to a clean backup
+                      # if the DB isn't under heavy write load.
+                      sudo gzip -c $DB_PATH > $BACKUP_FILE
+
+                      # Keep only the latest 7 backups on the VM just in case
+                      ls -t $BACKUP_DIR/db_backup_*.sqlite3.gz | tail -n +8 | xargs sudo rm -f || true
+
+                      echo "Backup created at $BACKUP_FILE"
+
+            - name: Download Backup from VM
+              run: |
+                  mkdir -p backups
+                  echo "${{ secrets.VM_SSH_KEY }}" > vm_key
+                  chmod 600 vm_key
+                  scp -i vm_key -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/tmp/backups/db_backup_*.sqlite3.gz backups/
+                  rm vm_key
+
+            - name: Upload Backup to GitHub Artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: database-backup
+                  path: backups/db_backup_*.sqlite3.gz
+                  retention-days: 30

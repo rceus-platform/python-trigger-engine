@@ -59,19 +59,24 @@ def extract_post_text(image_paths: list[Path]) -> dict[str, str]:
         raise RuntimeError("No images found in Instagram post")
 
     prompt = """
-You are an OCR + language normalization engine.
+You are an OCR and behavioral analysis engine.
 
-Read all provided Instagram images and extract educational/meaningful text.
-Ignore decorative symbols, watermarks, and UI elements.
+Tasks:
+1. Read all provided Instagram images and extract educational/meaningful text.
+2. Detect language (hi|mr|en|mixed).
+3. Provide combined extracted text in original script (transcript_native).
+4. Provide a clean natural English translation (transcript_english).
+5. Extract actionable behavior triggers as a list (triggers).
+6. Create a catchy title (max 5-6 words) (title).
 
-Return STRICT JSON only in this schema:
+Return STRICT JSON only:
 {
   "language": "hi|mr|en|mixed",
-  "transcript_native": "combined extracted text in original script",
-  "transcript_english": "clean natural English translation of the extracted text"
+  "transcript_native": "...",
+  "transcript_english": "...",
+  "triggers": ["...", "..."],
+  "title": "..."
 }
-
-Do not wrap JSON in markdown or code fences.
 """
 
     contents: list[dict[str, object]] = []
@@ -118,7 +123,6 @@ Do not wrap JSON in markdown or code fences.
                 )
                 raise RuntimeError("AI returned invalid post text JSON") from exc
 
-            language = str(parsed.get("language", "mixed"))
             transcript_native = str(parsed.get("transcript_native", "")).strip()
             transcript_english = str(parsed.get("transcript_english", "")).strip()
 
@@ -129,9 +133,11 @@ Do not wrap JSON in markdown or code fences.
                 transcript_native = transcript_english
 
             return {
-                "language": language,
+                "language": str(parsed.get("language", "mixed")),
                 "transcript_native": transcript_native,
                 "transcript_english": transcript_english,
+                "triggers": parsed.get("triggers", []),
+                "title": str(parsed.get("title", "New Post Processed")),
             }
 
         except ClientError as exc:
