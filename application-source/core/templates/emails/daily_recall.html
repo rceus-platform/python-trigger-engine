@@ -3,13 +3,32 @@
 {% block content %}
 <h2 style="margin-top: 0;">Daily Recall</h2>
 
-<p>
+<p style="font-size:14px;color:#94a3b8;margin-bottom:20px;">
     <strong>{{ date }}</strong>
 </p>
 
-<ol>
-    {% for trigger in triggers %}
-    <li style="margin-bottom: 8px;">{{ trigger }}</li>
-    {% endfor %}
-</ol>
+{% for insight in insights %}
+<div style="margin-bottom: 40px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
+    <h3 style="margin-top: 0;">{{ insight.title|default:"Reel" }}</h3>
+
+    <p style="margin-bottom: 15px;">
+        <strong>Language:</strong> {{ insight.original_language }}<br>
+        <strong>Source:</strong>
+        <a href="{{ insight.source_url }}" style="color:#3b82f6;">
+            View Reel
+        </a>
+    </p>
+
+    <h4 style="margin-top: 15px; margin-bottom: 10px; color: #475569;">Behavior Triggers</h4>
+    <ul style="margin-top: 0;">
+        {% for t in insight.triggers.splitlines %}
+        {% if t.strip %}
+        <li style="margin-bottom: 8px;">{{ t }}</li>
+        {% endif %}
+        {% endfor %}
+    </ul>
+</div>
+{% empty %}
+<p>No new triggers to recall yet. Keep adding more reels!</p>
+{% endfor %}
 {% endblock %}

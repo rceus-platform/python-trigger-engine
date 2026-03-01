@@ -511,7 +511,7 @@
             } catch (err) {
                 clearInterval(progressInterval);
                 progressBar.style.backgroundColor = "var(--error)";
-                statusText.textContent = err.message;
+                statusText.textContent = typeof err.message === 'object' ? JSON.stringify(err.message) : err.message;
                 statusText.style.color = "var(--error)";
             } finally {
                 button.disabled = false;
@@ -542,7 +542,7 @@
                 } catch (err) {
                     clearInterval(interval);
                     clearInterval(progressInterval);
-                    statusText.textContent = err.message;
+                    statusText.textContent = typeof err.message === 'object' ? JSON.stringify(err.message) : err.message;
                     statusText.style.color = "var(--error)";
                 }
             }, 3000);
