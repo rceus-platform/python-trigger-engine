@@ -61,10 +61,10 @@ def extract_post_text(image_paths: list[Path]) -> dict[str, str]:
 You are an OCR and behavioral analysis engine.
 
 Tasks:
-1. Read all provided Instagram images and extract educational/meaningful text.
+1. Read all provided Instagram images and extract ALL text exactly as written from start to finish. Do not truncate or summarize.
 2. Detect language (hi|mr|en|mixed).
-3. Provide combined extracted text in original script (transcript_native).
-4. Provide a clean natural English translation (transcript_english).
+3. Provide the full combined extracted text in original script (transcript_native).
+4. Provide a full and complete natural English translation of the entire text (transcript_english).
 5. Extract actionable behavior triggers as a list (triggers).
 6. Create a catchy title (max 5-6 words) (title).
 
