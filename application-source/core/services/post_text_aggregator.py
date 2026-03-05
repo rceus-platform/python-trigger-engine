@@ -1,11 +1,11 @@
 """Download images from Instagram posts (single image or carousel)."""
 
 import logging
+import re
 from pathlib import Path
 
 import instaloader
-
-from core.services.instagram_auth import get_instaloader
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -41,33 +41,78 @@ def _download_image(
 
 def download_instagram_post(post_url: str) -> list[Path]:
     """Download an Instagram post and return local image paths."""
-    loader = get_instaloader(download_videos=False)
+    loader = instaloader.Instaloader(
+        download_video_thumbnails=False,
+        download_videos=False,
+        save_metadata=False,
+        post_metadata_txt_pattern="",
+    )
+    # Prevent indefinite hangs — instaloader has no built-in timeout.
+    # Wrap the session's send() so every request gets a 30 s timeout.
+    _orig_send = loader.context._session.send
+
+    def _send_with_timeout(request, **kwargs):
+        kwargs.setdefault("timeout", 30)
+        return _orig_send(request, **kwargs)
+
+    loader.context._session.send = _send_with_timeout
 
     shortcode = _extract_shortcode(post_url)
-    post = instaloader.Post.from_shortcode(loader.context, shortcode)
-
     image_paths: list[Path] = []
 
-    if post.typename == "GraphSidecar":
-        nodes = list(post.get_sidecar_nodes())[:3]  # Speed Op: Limit to first 3
-        for index, node in enumerate(nodes):
-            if node.is_video:
-                continue
+    try:
+        post = instaloader.Post.from_shortcode(loader.context, shortcode)
+
+        if post.typename == "GraphSidecar":
+            nodes = list(post.get_sidecar_nodes())
+            for index, node in enumerate(nodes):
+                if node.is_video:
+                    continue
+                file_path = _download_image(
+                    loader=loader,
+                    target_stem=MEDIA_DIR / f"{shortcode}_{index}",
+                    image_url=node.display_url,
+                    date_utc=post.date_utc,
+                )
+                image_paths.append(file_path)
+        elif not post.is_video:
             file_path = _download_image(
                 loader=loader,
-                target_stem=MEDIA_DIR / f"{shortcode}_{index}",
-                image_url=node.display_url,
+                target_stem=MEDIA_DIR / f"{shortcode}_0",
+                image_url=post.url,
                 date_utc=post.date_utc,
             )
             image_paths.append(file_path)
-    elif not post.is_video:
-        file_path = _download_image(
-            loader=loader,
-            target_stem=MEDIA_DIR / f"{shortcode}_0",
-            image_url=post.url,
-            date_utc=post.date_utc,
+
+    except Exception as e:
+        logger.warning(
+            "Instaloader failed to download post %s: %s. Attempting fallback.",
+            shortcode,
+            e,
         )
-        image_paths.append(file_path)
+        ua = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+        headers = {"User-Agent": ua}
+        try:
+            resp = requests.get(post_url, headers=headers, timeout=10)
+            resp.raise_for_status()
+
+            match = re.search(r'property="og:image"\s+content="([^"]+)"', resp.text)
+            if not match:
+                raise RuntimeError(
+                    f"No og:image found for fallback: {shortcode}"
+                ) from e
+
+            image_url = match.group(1).replace("&amp;", "&")
+            img_resp = requests.get(image_url, timeout=10)
+            img_resp.raise_for_status()
+
+            fallback_path = MEDIA_DIR / f"{shortcode}_fallback.jpg"
+            fallback_path.write_bytes(img_resp.content)
+            image_paths.append(fallback_path)
+        except Exception as fallback_err:
+            raise RuntimeError(
+                f"Both Instaloader and fallback failed for post {shortcode}"
+            ) from fallback_err
 
     if not image_paths:
         raise RuntimeError("Instagram post has no downloadable images")

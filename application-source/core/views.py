@@ -184,7 +184,8 @@ def process_reel(request):
                 )
             else:
                 # Already checking/processing
-                # If it's been stuck for over 5 minutes without completing, the worker likely crashed. Restart it.
+                # If it's been stuck for over 5 minutes without completing,
+                # the worker likely crashed. Restart it.
                 if (timezone.now() - existing.created_at).total_seconds() > 300:
                     async_task("core.views.background_process_reel", existing.pk, url)
                 return JsonResponse({"status": "processing", "id": existing.pk})
