@@ -141,6 +141,29 @@
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
         }
 
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .secondary-btn {
+            flex: 1;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .secondary-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
         @media (max-width: 640px) {
             button#submitBtn {
                 padding: 0.75rem;
@@ -377,6 +400,10 @@
                     <div class="input-group">
                         <input type="url" name="url" id="urlInput" placeholder="https://www.instagram.com/reel/..."
                             required />
+                        <div class="action-buttons">
+                            <button type="button" id="pasteBtn" class="secondary-btn">Paste</button>
+                            <button type="button" id="clearBtn" class="secondary-btn">Clear</button>
+                        </div>
                         <button id="submitBtn" type="submit">Process Intensity</button>
                     </div>
                 </form>
@@ -430,6 +457,9 @@
 
     <script>
         const form = document.getElementById("reelForm");
+        const urlInput = document.getElementById("urlInput");
+        const pasteBtn = document.getElementById("pasteBtn");
+        const clearBtn = document.getElementById("clearBtn");
         const button = document.getElementById("submitBtn");
         const result = document.getElementById("result");
         const statusText = document.getElementById("statusText");
@@ -477,6 +507,25 @@
                 }
             }, 100);
         }
+
+        pasteBtn.addEventListener("click", async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                urlInput.value = text;
+            } catch (err) {
+                console.error('Failed to read clipboard: ', err);
+                alert("Please allow clipboard access or paste manually.");
+            }
+        });
+
+        clearBtn.addEventListener("click", () => {
+            urlInput.value = "";
+            result.style.display = "none";
+            content.style.display = "none";
+            document.getElementById("statusArea").style.display = "none";
+            button.disabled = false;
+            if (progressInterval) clearInterval(progressInterval);
+        });
 
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
