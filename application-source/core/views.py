@@ -112,7 +112,7 @@ def background_process_reel(insight_id: int, url: str):
                 insight.triggers = existing.triggers
                 insight.title = existing.title
                 insight.processed_at = timezone.now()
-                insight.audio_hash = existing.audio_hash
+                insight.audio_hash = None # Clear instead of duplicate to avoid IntegrityError (unique=True)
                 insight.save()
                 return
 
