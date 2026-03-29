@@ -33,3 +33,4 @@ To schedule the daily recall emails (9am, 12pm, 3pm, 6pm, 9pm) on the Oracle VM:
    ```
 
 Logs are written to `application-source/logs/cron.log`.
+
