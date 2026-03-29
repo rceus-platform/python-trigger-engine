@@ -4,6 +4,7 @@
   "start_command": ".venv/bin/gunicorn trigger_engine.asgi:application -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000",
   "port": 8000,
   "domain": "trigger-engine.rceus.duckdns.org",
+  "timezone": "Asia/Kolkata",
   "env_vars": [
     "SITE_PASSCODE",
     "EMAIL_HOST_PASSWORD",

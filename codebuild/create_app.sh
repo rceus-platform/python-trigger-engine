@@ -79,6 +79,10 @@ WORKDIR=$(jq -r '.working_dir' "$MANIFEST")
 START_CMD=$(jq -r '.start_command' "$MANIFEST")
 PORT=$(jq -r '.port' "$MANIFEST")
 DOMAIN=$(jq -r '.domain' "$MANIFEST")
+TIMEZONE=$(jq -r '.timezone // "Asia/Kolkata"' "$MANIFEST")
+
+echo "🕒 Setting system timezone to $TIMEZONE"
+sudo timedatectl set-timezone "$TIMEZONE" || echo "⚠️  Warning: Could not set system timezone"
 
 APP_WORKDIR="$APP_DIR/$WORKDIR"
 
@@ -230,6 +234,7 @@ UMask=0002
 
 $(if [ -n "$APP_SECRET_PATH" ]; then echo "Environment=APP_SECRET_JSON=${APP_SECRET_PATH}"; fi)
 EnvironmentFile=-${APP_WORKDIR}/.env
+Environment=TZ=${TIMEZONE}
 Environment=PYTHONPATH=${APP_WORKDIR}
 Environment=PATH=/home/ubuntu/.local/bin:/usr/bin:/bin
 
