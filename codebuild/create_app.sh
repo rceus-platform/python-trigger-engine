@@ -179,10 +179,10 @@ if [ "$RUNTIME" = "python" ]; then
 
   if [ -f "manage.py" ]; then
     echo "🗄️ Django app detected. Running migrations..."
-    sudo -u "$DEPLOY_USER" .venv/bin/python manage.py migrate --no-interaction
+    sudo -u "$DEPLOY_USER" .venv/bin/python manage.py migrate --noinput
 
     echo "🎨 Collecting static files..."
-    sudo -u "$DEPLOY_USER" .venv/bin/python manage.py collectstatic --no-interaction
+    sudo -u "$DEPLOY_USER" .venv/bin/python manage.py collectstatic --noinput
   else
     echo "ℹ️ No manage.py found. Skipping Django-specific steps."
   fi
