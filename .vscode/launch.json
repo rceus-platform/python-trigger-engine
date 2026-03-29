@@ -1,0 +1,53 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Django: runserver",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/application-source/manage.py",
+            "python": "${workspaceFolder}/application-source/.venv/bin/python",
+            "args": [
+                "runserver",
+                "0.0.0.0:8000",
+                "--noreload"
+            ],
+            "django": true,
+            "justMyCode": true,
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/application-source/.env",
+            "env": {
+                "PYTHONDONTWRITEBYTECODE": "1",
+                "DEBUG": "True"
+            }
+        },
+        {
+            "name": "Django: qcluster",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/application-source/manage.py",
+            "python": "${workspaceFolder}/application-source/.venv/bin/python",
+            "args": [
+                "qcluster"
+            ],
+            "django": true,
+            "justMyCode": true,
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/application-source/.env",
+            "env": {
+                "PYTHONDONTWRITEBYTECODE": "1",
+                "DEBUG": "True"
+            }
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Django + qcluster",
+            "configurations": [
+                "Django: qcluster",
+                "Django: runserver"
+            ],
+            "stopAll": true
+        }
+    ]
+}

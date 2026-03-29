@@ -16,7 +16,7 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          envs: GITHUB_REPOSITORY,APP_SECRET_JSON_B64
+          envs: GITHUB_REPOSITORY,APP_SECRET_JSON_B64,SITE_PASSCODE,EMAIL_HOST_PASSWORD,GEMINI_API_KEY_1,GEMINI_API_KEY_2
           script: |
             set -e
 
@@ -46,59 +46,16 @@ jobs:
             echo "📥 Pulling code"
             git pull origin main
 
-            if [ ! -f "$MANIFEST" ]; then
-              echo "❌ Missing manifest: $MANIFEST"
-              exit 1
-            fi
-
-            WORKDIR=$(jq -r '.working_dir' "$MANIFEST")
-            APP_WORKDIR="$APP_DIR/$WORKDIR"
-            VENV="$APP_WORKDIR/.venv"
-
-            echo "📦 Installing dependencies"
-            $VENV/bin/pip install -r "$APP_WORKDIR/requirements.txt"
-
-            if [ -f "$APP_WORKDIR/manage.py" ]; then
-              echo "🧠 Django detected"
-              $VENV/bin/python "$APP_WORKDIR/manage.py" migrate --noinput
-              $VENV/bin/python "$APP_WORKDIR/manage.py" collectstatic --noinput
-              
-              echo "⚙️ Configuring qcluster service"
-              cat <<EOF | sudo tee /etc/systemd/system/$QCLUSTER_SERVICE_NAME > /dev/null
-            [Unit]
-            Description=${APP_NAME} QCluster Worker
-            After=network.target
-
-            [Service]
-            User=ubuntu
-            WorkingDirectory=${APP_WORKDIR}
-            UMask=0002
-            Environment=APP_SECRET_JSON=${SECRET_PATH}
-            Environment=DJANGO_SETTINGS_MODULE=trigger_engine.settings
-            Environment=PYTHONPATH=${APP_WORKDIR}
-            ExecStart=${VENV}/bin/python ${APP_WORKDIR}/manage.py qcluster
-            Restart=always
-            RestartSec=3
-
-            [Install]
-            WantedBy=multi-user.target
-            EOF
-            fi
-
-            echo "🔁 Restarting service"
-            sudo systemctl daemon-reload
-            sudo systemctl restart $SERVICE_NAME
-            sudo systemctl enable --now $QCLUSTER_SERVICE_NAME
-            sudo systemctl restart $QCLUSTER_SERVICE_NAME
-
-            echo "🌐 Reloading nginx"
-            sudo systemctl reload nginx
-
-            echo "🩺 Verifying service"
-            sleep 2
-            sudo systemctl is-active --quiet $SERVICE_NAME
-            sudo systemctl is-active --quiet $QCLUSTER_SERVICE_NAME
+            echo "➡ Handover to standardized create_app.sh"
+            export APP_NAME
+            export APP_SECRET_PATH="$SECRET_PATH"
+            # create_app.sh handles .env, runtime setup, systemd, and nginx
+            sudo -E bash codebuild/create_app.sh
 
             echo "✅ Deploy completed successfully"
         env:
           APP_SECRET_JSON_B64: ${{ secrets.APP_SECRET_JSON_B64 }}
+          SITE_PASSCODE: ${{ secrets.SITE_PASSCODE }}
+          EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+          GEMINI_API_KEY_1: ${{ secrets.GEMINI_API_KEY_1 }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}

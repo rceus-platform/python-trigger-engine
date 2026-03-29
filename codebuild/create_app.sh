@@ -5,7 +5,8 @@ set -euo pipefail
 # REQUIRED ENV
 # ================================
 APP_NAME="${APP_NAME:?APP_NAME not set}"
-APP_SECRET_PATH="${APP_SECRET_PATH:?APP_SECRET_PATH not set}"
+# APP_SECRET_PATH may be optional for some apps, but we'll default to an empty string if not provided
+APP_SECRET_PATH="${APP_SECRET_PATH:-}"
 GITHUB_REPOSITORY="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY not set}"
 
 # ================================
@@ -17,6 +18,47 @@ MANIFEST="$APP_DIR/codebuild/app.manifest.json"
 DEPLOY_USER="ubuntu"
 
 echo "➡ Creating app: $APP_NAME"
+
+# ================================
+# OS DEPENDENCIES (Ensures jq is available)
+# ================================
+echo "🔧 Installing OS dependencies"
+
+install_if_missing() {
+  local PKG=$1
+  if ! dpkg -l "$PKG" &>/dev/null; then
+    echo "📦 Installing $PKG..."
+    sudo apt-get install -y "$PKG"
+  else
+    echo "✅ $PKG is already installed"
+  fi
+}
+
+# Define dependencies for ALL runtimes
+CORE_PKGS="jq curl ca-certificates nginx build-essential clang openssl"
+# Browsing/Scraping dependencies (Universal)
+BROWSER_PKGS="chromium-browser chromium-chromedriver xvfb"
+# Python Specific (needed for build/setup)
+PYTHON_PKGS="python3-pip python3-venv python3-dev"
+
+# Check if we need to update apt
+NEED_UPDATE=false
+for pkg in $CORE_PKGS $BROWSER_PKGS $PYTHON_PKGS; do
+  if ! dpkg -l "$pkg" &>/dev/null; then
+    NEED_UPDATE=true
+    break
+  fi
+done
+
+if [ "$NEED_UPDATE" = true ]; then
+  echo "⬆ Updating apt-get"
+  sudo apt-get update -y
+fi
+
+# Install all dependencies
+for pkg in $CORE_PKGS $BROWSER_PKGS $PYTHON_PKGS; do
+  install_if_missing "$pkg"
+done
 
 cd "$APP_DIR"
 
@@ -43,37 +85,126 @@ fi
 
 cd "$APP_WORKDIR"
 
-# Ensure app dir is writable so new subdirs can be created at runtime
-chown -R "$DEPLOY_USER:$DEPLOY_USER" "$APP_WORKDIR"
-chmod -R u+rwX,g+rwX "$APP_WORKDIR"
+# Ensure correct permissions
+sudo chown -R "$DEPLOY_USER:$DEPLOY_USER" "$APP_WORKDIR"
+sudo chmod -R u+rwX,g+rwX "$APP_WORKDIR"
 
 # ================================
-# RUNTIME SETUP
+# UNIVERSAL .ENV GENERATION
 # ================================
-if [ "$RUNTIME" = "python" ]; then
-  echo "🐍 Python setup"
+echo "🔐 Generating .env file from manifest"
+ENV_FILE="$APP_WORKDIR/.env"
 
-  if [ ! -d ".venv" ]; then
-    sudo -u "$DEPLOY_USER" python3 -m venv .venv
-  fi
+# Use a temporary file for atomic write and better permission handling
+TMP_ENV=$(mktemp)
+# If env_vars is null or empty, jq returns nothing
+ENV_VARS=$(jq -r '.env_vars // [] | .[]' "$MANIFEST")
 
-  sudo -u "$DEPLOY_USER" .venv/bin/pip install --upgrade pip
-  sudo -u "$DEPLOY_USER" .venv/bin/pip install -r requirements.txt
-
-  if [ -f manage.py ]; then
-    echo "🗄️ Running Django migrations"
-    sudo -u "$DEPLOY_USER" .venv/bin/python manage.py migrate --noinput
-    if [ -f "db.sqlite3" ]; then
-      chown "$DEPLOY_USER:$DEPLOY_USER" "db.sqlite3"
-      chmod 664 "db.sqlite3"
+for VAR in $ENV_VARS; do
+    # Use Bash indirect expansion to get value of variable named $VAR
+    VAL="${!VAR:-}"
+    if [ -n "$VAL" ]; then
+        echo "${VAR}=${VAL}" >> "$TMP_ENV"
+    else
+        echo "⚠️  Warning: $VAR is in manifest but not set in environment"
     fi
-  fi
+done
+
+sudo cp "$TMP_ENV" "$ENV_FILE"
+sudo chown "$DEPLOY_USER:$DEPLOY_USER" "$ENV_FILE"
+sudo chmod 600 "$ENV_FILE"
+rm -f "$TMP_ENV"
+
+echo "  ✅ .env written with $(wc -l < "$ENV_FILE") variable(s)"
+
+# ================================
+# SSL PROVISIONING
+# ================================
+echo "🔐 Checking SSL certificates"
+SSL_DIR="/etc/nginx/ssl"
+if [ ! -f "$SSL_DIR/self.crt" ]; then
+  echo "🎁 Generating self-signed certificate"
+  sudo mkdir -p "$SSL_DIR"
+  sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout "$SSL_DIR/self.key" -out "$SSL_DIR/self.crt" \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=${DOMAIN}"
 fi
 
 # ================================
-# SYSTEMD (GENERATED)
+# RUNTIME SETUP (Python)
 # ================================
-cat > "/etc/systemd/system/${APP_NAME}.service" <<EOF
+if [ "$RUNTIME" = "python" ]; then
+  echo "🐍 Python setup with Poetry"
+
+  PYTHON_BIN=$(which python3)
+  POETRY_BIN="/home/$DEPLOY_USER/.local/bin/poetry"
+
+  # Install/Repair Poetry
+  if ! sudo -u "$DEPLOY_USER" [ -x "$POETRY_BIN" ] || ! sudo -u "$DEPLOY_USER" "$POETRY_BIN" --version &>/dev/null; then
+    echo "📥 Installing/Repairing Poetry using $PYTHON_BIN"
+    curl -sSL https://install.python-poetry.org | sudo -u "$DEPLOY_USER" "$PYTHON_BIN" -
+  fi
+
+  export PATH="/home/$DEPLOY_USER/.local/bin:$PATH"
+
+  # Configure Poetry
+  sudo -u "$DEPLOY_USER" "$POETRY_BIN" config virtualenvs.in-project true
+
+  # Handle .venv compatibility
+  if [ -d ".venv" ]; then
+    CUR_V=$( .venv/bin/python --version | awk '{print $2}' | cut -d. -f1,2 )
+    SYS_V=$( "$PYTHON_BIN" --version | awk '{print $2}' | cut -d. -f1,2 )
+    if [ "$CUR_V" != "$SYS_V" ]; then
+      echo "🗑️ Removing incompatible .venv ($CUR_V vs $SYS_V)"
+      sudo rm -rf .venv
+    fi
+  fi
+
+  if [ ! -d ".venv" ]; then
+    echo "📦 Creating .venv with $PYTHON_BIN"
+    sudo -u "$DEPLOY_USER" "$PYTHON_BIN" -m venv .venv
+  fi
+
+  echo "📦 Installing Python dependencies"
+  sudo -u "$DEPLOY_USER" "$POETRY_BIN" install --no-root --no-interaction
+
+  if [ ! -d ".venv" ]; then
+    echo "❌ .venv not created"
+    exit 1
+  fi
+
+# ================================
+# RUNTIME SETUP (React)
+# ================================
+elif [ "$RUNTIME" = "react" ]; then
+  echo "⚛️ React setup with NPM"
+
+  # Check if Node.js is missing or below version 20
+  if command -v node &> /dev/null; then
+    NODE_MAJOR_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+  else
+    NODE_MAJOR_VERSION=0
+  fi
+
+  if [ "$NODE_MAJOR_VERSION" -lt 20 ]; then
+    echo "📥 Installing/Upgrading Node.js to version 20.x (Current: v$NODE_MAJOR_VERSION)"
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+  fi
+
+  echo "📦 Installing NPM dependencies"
+  sudo -u "$DEPLOY_USER" npm install
+
+  echo "🏗️ Building React application"
+  sudo -u "$DEPLOY_USER" npm run build
+fi
+
+# ================================
+# SYSTEMD (Only for persistent services)
+# ================================
+if [ "$RUNTIME" = "python" ]; then
+  echo "🔧 Creating systemd service"
+  sudo tee "/etc/systemd/system/${APP_NAME}.service" > /dev/null <<EOF
 [Unit]
 Description=${APP_NAME}
 After=network.target
@@ -83,11 +214,13 @@ User=ubuntu
 WorkingDirectory=${APP_WORKDIR}
 UMask=0002
 
-Environment=APP_SECRET_JSON=${APP_SECRET_PATH}
-Environment=DJANGO_SETTINGS_MODULE=trigger_engine.settings
+$(if [ -n "$APP_SECRET_PATH" ]; then echo "Environment=APP_SECRET_JSON=${APP_SECRET_PATH}"; fi)
+EnvironmentFile=-${APP_WORKDIR}/.env
 Environment=PYTHONPATH=${APP_WORKDIR}
+Environment=PATH=/home/ubuntu/.local/bin:/usr/bin:/bin
 
 ExecStart=${APP_WORKDIR}/${START_CMD}
+
 Restart=always
 RestartSec=3
 
@@ -95,52 +228,38 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 
-cat > "/etc/systemd/system/${APP_NAME}-qcluster.service" <<EOF
-[Unit]
-Description=${APP_NAME} QCluster Worker
-After=network.target
-
-[Service]
-User=ubuntu
-WorkingDirectory=${APP_WORKDIR}
-UMask=0002
-
-Environment=APP_SECRET_JSON=${APP_SECRET_PATH}
-Environment=DJANGO_SETTINGS_MODULE=trigger_engine.settings
-Environment=PYTHONPATH=${APP_WORKDIR}
-
-ExecStart=${APP_WORKDIR}/.venv/bin/python ${APP_WORKDIR}/manage.py qcluster
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable "${APP_NAME}"
-systemctl restart "${APP_NAME}"
-
-systemctl enable "${APP_NAME}-qcluster"
-systemctl restart "${APP_NAME}-qcluster"
+  sudo systemctl daemon-reload
+  sudo systemctl enable "${APP_NAME}"
+  sudo systemctl restart "${APP_NAME}"
+fi
 
 # ================================
-# NGINX (GENERATED)
+# NGINX CONFIGURATION
 # ================================
-echo "🌐 Generating nginx config"
+echo "🌐 Generating nginx config for $DOMAIN"
 
-cat > "/etc/nginx/sites-available/${DOMAIN}" <<EOF
+if [ "$RUNTIME" = "react" ]; then
+  # React: Serve static files from /dist
+  LOCATION_CONFIG="    root ${APP_WORKDIR}/dist;
+    index index.html;
+    try_files \$uri \$uri/ /index.html;"
+else
+  # Python: Proxy to the local port
+  LOCATION_CONFIG="    proxy_pass http://127.0.0.1:${PORT};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;"
+fi
+
+sudo tee "/etc/nginx/sites-available/${DOMAIN}" > /dev/null <<EOF
 server {
   listen 80;
   server_name ${DOMAIN};
 
   location / {
-    proxy_pass http://127.0.0.1:${PORT};
-    proxy_http_version 1.1;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto \$scheme;
+${LOCATION_CONFIG}
   }
 }
 
@@ -155,18 +274,15 @@ server {
   ssl_ciphers HIGH:!aNULL:!MD5;
 
   location / {
-    proxy_pass http://127.0.0.1:${PORT};
-    proxy_http_version 1.1;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto \$scheme;
+${LOCATION_CONFIG}
   }
 }
 EOF
 
-ln -sf "/etc/nginx/sites-available/${DOMAIN}" "/etc/nginx/sites-enabled/${DOMAIN}"
-nginx -t
-systemctl reload nginx
+sudo ln -sf "/etc/nginx/sites-available/${DOMAIN}" "/etc/nginx/sites-enabled/${DOMAIN}"
 
-echo "✅ App created successfully"
+sudo nginx -t
+sudo systemctl reload nginx
+
+echo "✅ App created/updated successfully"
+echo "🌐 URL: http://${DOMAIN}"
