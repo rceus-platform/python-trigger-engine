@@ -177,6 +177,16 @@ if [ "$RUNTIME" = "python" ]; then
     exit 1
   fi
 
+  if [ -f "manage.py" ]; then
+    echo "🗄️ Django app detected. Running migrations..."
+    sudo -u "$DEPLOY_USER" .venv/bin/python manage.py migrate --no-interaction
+
+    echo "🎨 Collecting static files..."
+    sudo -u "$DEPLOY_USER" .venv/bin/python manage.py collectstatic --no-interaction
+  else
+    echo "ℹ️ No manage.py found. Skipping Django-specific steps."
+  fi
+
 # ================================
 # RUNTIME SETUP (React)
 # ================================
