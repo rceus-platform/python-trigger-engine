@@ -15,6 +15,7 @@ GITHUB_REPOSITORY="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY not set}"
 BASE_DIR="/opt/apps"
 APP_DIR="$BASE_DIR/$APP_NAME"
 MANIFEST="$APP_DIR/codebuild/app.manifest.json"
+PACKAGES_FILE="$APP_DIR/codebuild/packages.json"
 DEPLOY_USER="ubuntu"
 
 echo "➡ Creating app: $APP_NAME"
@@ -34,12 +35,15 @@ install_if_missing() {
   fi
 }
 
-# Define dependencies for ALL runtimes
-CORE_PKGS="jq curl ca-certificates nginx build-essential clang openssl"
-# Browsing/Scraping dependencies (Universal)
-BROWSER_PKGS="chromium-browser chromium-chromedriver xvfb"
-# Python Specific (needed for build/setup)
-PYTHON_PKGS="python3-pip python3-venv python3-dev"
+if [ ! -f "$PACKAGES_FILE" ]; then
+  echo "❌ Missing codebuild/packages.json"
+  exit 1
+fi
+
+# Read packages from config
+CORE_PKGS=$(jq -r '.core | join(" ")' "$PACKAGES_FILE")
+BROWSER_PKGS=$(jq -r '.browser | join(" ")' "$PACKAGES_FILE")
+PYTHON_PKGS=$(jq -r '.python | join(" ")' "$PACKAGES_FILE")
 
 # Check if we need to update apt
 NEED_UPDATE=false
