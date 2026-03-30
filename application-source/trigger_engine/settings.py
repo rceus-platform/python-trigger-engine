@@ -190,7 +190,7 @@ LOGGING = {
 # Django Q2 Configuration
 Q_CLUSTER = {
     "name": "TriggerEngine",
-    "workers": 4,
+    "workers": 1,
     "recycle": 500,
     "timeout": 300,  # 5 minutes for heavy reels
     "retry": 360,  # Retry must be > timeout

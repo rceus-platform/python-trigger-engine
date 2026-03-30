@@ -194,27 +194,16 @@ if [ "$RUNTIME" = "python" ]; then
 # ================================
 # RUNTIME SETUP (React)
 # ================================
-elif [ "$RUNTIME" = "react" ]; then
-  echo "⚛️ React setup with NPM"
-
-  # Check if Node.js is missing or below version 20
-  if command -v node &> /dev/null; then
-    NODE_MAJOR_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+  # If dist/ exists, we assume the app was pre-built (e.g. via GitHub Actions)
+  if [ -d "dist" ] && [ "$(ls -A dist)" ]; then
+    echo "✅ Found pre-built dist/ folder. Skipping build steps to save resources."
   else
-    NODE_MAJOR_VERSION=0
+    echo "📦 Installing NPM dependencies"
+    sudo -u "$DEPLOY_USER" npm install
+
+    echo "🏗️ Building React application"
+    sudo -u "$DEPLOY_USER" npm run build
   fi
-
-  if [ "$NODE_MAJOR_VERSION" -lt 20 ]; then
-    echo "📥 Installing/Upgrading Node.js to version 20.x (Current: v$NODE_MAJOR_VERSION)"
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-  fi
-
-  echo "📦 Installing NPM dependencies"
-  sudo -u "$DEPLOY_USER" npm install
-
-  echo "🏗️ Building React application"
-  sudo -u "$DEPLOY_USER" npm run build
 fi
 
 # ================================
