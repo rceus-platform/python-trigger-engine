@@ -12,8 +12,6 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django_q.tasks import async_task
-
 from core.models import ReelInsight
 from core.services.audio_extractor import extract_audio_for_gemini
 from core.services.audio_hash import compute_audio_hash
@@ -73,8 +71,8 @@ def _is_instagram_post_url(url: str) -> bool:
     return "/p/" in url
 
 
-def background_process_reel(insight_id: int, url: str):
-    """Background task to process a reel/post."""
+def process_reel_task(insight_id: int, url: str):
+    """Synchronously process a reel/post."""
     from core.services.email_new_reel import send_new_reel_email
 
     insight = ReelInsight.objects.get(pk=insight_id)
@@ -140,7 +138,7 @@ def background_process_reel(insight_id: int, url: str):
         logger.info("Background processing complete for insight %s", insight_id)
 
     except Exception as e:
-        logger.exception("Background task failed")
+        logger.exception("Processing task failed")
         insight.delete()
         send_error_email(
             url=url, error_message=str(e), traceback_text=traceback.format_exc()
@@ -183,11 +181,8 @@ def process_reel(request):
                     }
                 )
             else:
-                # Already checking/processing
-                # If it's been stuck for over 5 minutes without completing,
-                # the worker likely crashed. Restart it.
-                if (timezone.now() - existing.created_at).total_seconds() > 300:
-                    async_task("core.views.background_process_reel", existing.pk, url)
+                # Processing is synchronous, so if we reach here, it shouldn't be "stuck"
+                # but we'll return the record anyway.
                 return JsonResponse({"status": "processing", "id": existing.pk})
 
         # Metadata check (source_id)
@@ -212,15 +207,7 @@ def process_reel(request):
                                 }
                             )
                         else:
-                            # If it's been stuck for over 5 minutes without completing, restart it.
-                            if (
-                                timezone.now() - existing.created_at
-                            ).total_seconds() > 300:
-                                async_task(
-                                    "core.views.background_process_reel",
-                                    existing.pk,
-                                    url,
-                                )
+                            # Synchronous processing doesn't use workers
                             return JsonResponse(
                                 {"status": "processing", "id": existing.pk}
                             )
@@ -237,10 +224,23 @@ def process_reel(request):
             triggers="Processing...",
         )
 
-        # Enqueue background task
-        async_task("core.views.background_process_reel", insight.pk, url)
+        # Process synchronously (This blocks the request until finished)
+        process_reel_task(insight.pk, url)
 
-        return JsonResponse({"status": "processing", "id": insight.pk})
+        # Refresh from DB to get the results
+        insight.refresh_from_db()
+
+        return JsonResponse(
+            {
+                "status": "complete",
+                "id": insight.pk,
+                "title": insight.title,
+                "triggers": insight.triggers.split("\n") if insight.triggers else [],
+                "transcript_original": insight.transcript_original,
+                "transcript_english": insight.transcript_english,
+                "language": insight.original_language,
+            }
+        )
 
     except Exception as e:
         logger.exception("process_reel endpoint failed")

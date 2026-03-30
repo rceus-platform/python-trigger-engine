@@ -52,7 +52,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_q",
     "core",
 ]
 
@@ -187,12 +186,4 @@ LOGGING = {
     },
 }
 
-# Django Q2 Configuration
-Q_CLUSTER = {
-    "name": "TriggerEngine",
-    "workers": 1,
-    "recycle": 500,
-    "timeout": 300,  # 5 minutes for heavy reels
-    "retry": 360,  # Retry must be > timeout
-    "orm": "default",
-}
+# Django Q2 Removed
