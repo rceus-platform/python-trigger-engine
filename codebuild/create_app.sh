@@ -190,19 +190,23 @@ if [ "$RUNTIME" = "python" ]; then
   else
     echo "ℹ️ No manage.py found. Skipping Django-specific steps."
   fi
+fi
 
 # ================================
 # RUNTIME SETUP (React)
 # ================================
+if [ "$RUNTIME" = "react" ]; then
   # If dist/ exists, we assume the app was pre-built (e.g. via GitHub Actions)
   if [ -d "dist" ] && [ "$(ls -A dist)" ]; then
     echo "✅ Found pre-built dist/ folder. Skipping build steps to save resources."
-  else
+  elif [ -f "package.json" ]; then
     echo "📦 Installing NPM dependencies"
     sudo -u "$DEPLOY_USER" npm install
 
     echo "🏗️ Building React application"
     sudo -u "$DEPLOY_USER" npm run build
+  else
+    echo "⚠️ Warning: Runtime is react but no package.json or dist/ found."
   fi
 fi
 
