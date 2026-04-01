@@ -1,13 +1,13 @@
 """Gemini transcription helpers with rotating API keys."""
 
 import base64
-import json
 import logging
 
 from google.genai.errors import ClientError
 
 from core.constants import GEMINI_API_KEYS
 from core.services.gemini_key_manager import GeminiKeyManager
+from core.utils import parse_first_json
 
 logger = logging.getLogger(__name__)
 
@@ -97,21 +97,14 @@ Output STRICT JSON only:
                 logger.error("Gemini returned empty response text")
                 raise RuntimeError("AI returned empty response. Please try again.")
 
-            try:
-                cleaned = response_text
-                if cleaned.startswith("```json"):
-                    cleaned = cleaned[7:]
-                elif cleaned.startswith("```"):
-                    cleaned = cleaned[3:]
-                if cleaned.endswith("```"):
-                    cleaned = cleaned[:-3]
-                cleaned = cleaned.strip()
-                return json.loads(cleaned)
-            except json.JSONDecodeError as e:
-                logger.error(
-                    "Gemini returned non-JSON response: %s", response_text[:500]
-                )
-                raise RuntimeError("AI returned invalid JSON. Please try again.") from e
+            parsed = parse_first_json(response_text)
+            if parsed:
+                return parsed
+            
+            logger.error(
+                "Gemini returned non-JSON response: %s", response_text[:500]
+            )
+            raise RuntimeError("AI returned invalid JSON. Please try again.")
 
         except ClientError as e:
             error_text = str(e)

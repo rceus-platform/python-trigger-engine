@@ -9,6 +9,7 @@ from google.genai.errors import ClientError
 
 from core.constants import GEMINI_API_KEYS
 from core.services.gemini_key_manager import GeminiKeyManager
+from core.utils import parse_first_json
 
 logger = logging.getLogger(__name__)
 
@@ -24,31 +25,9 @@ def _safe_key_index(api_key: str) -> int:
 
 
 def _parse_json_object(response_text: str) -> dict[str, object]:
-    text = response_text.strip()
-
-    if text.startswith("```"):
-        lines = text.splitlines()
-        if lines and lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-        text = "\n".join(lines).strip()
-
-    try:
-        parsed = json.loads(text)
-        if isinstance(parsed, dict):
-            return parsed
-    except json.JSONDecodeError:
-        pass
-
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        snippet = text[start : end + 1]
-        parsed = json.loads(snippet)
-        if isinstance(parsed, dict):
-            return parsed
-
+    parsed = parse_first_json(response_text)
+    if parsed is not None:
+        return parsed
     raise RuntimeError("AI returned invalid post text JSON")
 
 

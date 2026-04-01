@@ -143,6 +143,7 @@ def process_reel_task(insight_id: int, url: str):
         send_error_email(
             url=url, error_message=str(e), traceback_text=traceback.format_exc()
         )
+        raise
     finally:
         if video_path:
             video_path.unlink(missing_ok=True)
