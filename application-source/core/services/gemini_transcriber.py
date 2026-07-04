@@ -120,9 +120,9 @@ Output STRICT JSON only:
                 continue
 
             # ---- INVALID KEY (disable permanently) ----
-            if "API_KEY_INVALID" in error_text or "not valid" in error_text.lower():
+            if "API_KEY_INVALID" in error_text or "not valid" in error_text.lower() or "PERMISSION_DENIED" in error_text:
                 logger.error(
-                    "Gemini API key invalid",
+                    "Gemini API key invalid or permission denied",
                     extra={"key_index": GEMINI_API_KEYS.index(api_key)},
                 )
                 KEY_MANAGER.disable_key(api_key)
