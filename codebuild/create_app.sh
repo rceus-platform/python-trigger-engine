@@ -5,7 +5,6 @@ set -euo pipefail
 # REQUIRED ENV
 # ================================
 APP_NAME="${APP_NAME:?APP_NAME not set}"
-# APP_SECRET_PATH may be optional for some apps, but we'll default to an empty string if not provided
 APP_SECRET_PATH="${APP_SECRET_PATH:-}"
 GITHUB_REPOSITORY="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY not set}"
 
@@ -23,11 +22,18 @@ echo "➡ Creating app: $APP_NAME"
 # ================================
 # OS DEPENDENCIES (Ensures jq is available)
 # ================================
+echo "🔧 Pre-checking dependencies"
+
+if ! command -v jq &>/dev/null; then
+  echo "📦 Installing jq..."
+  sudo apt-get update -y && sudo apt-get install -y jq
+fi
+
 echo "🔧 Installing OS dependencies"
 
 install_if_missing() {
   local PKG=$1
-  if ! dpkg -l "$PKG" &>/dev/null; then
+  if ! dpkg -s "$PKG" &>/dev/null; then
     echo "📦 Installing $PKG..."
     sudo apt-get install -y "$PKG"
   else
@@ -44,11 +50,12 @@ fi
 CORE_PKGS=$(jq -r '.core | join(" ")' "$PACKAGES_FILE")
 BROWSER_PKGS=$(jq -r '.browser | join(" ")' "$PACKAGES_FILE")
 PYTHON_PKGS=$(jq -r '.python | join(" ")' "$PACKAGES_FILE")
+NODE_PKGS=$(jq -r '.node // [] | join(" ")' "$PACKAGES_FILE")
 
 # Check if we need to update apt
 NEED_UPDATE=false
-for pkg in $CORE_PKGS $BROWSER_PKGS $PYTHON_PKGS; do
-  if ! dpkg -l "$pkg" &>/dev/null; then
+for pkg in $CORE_PKGS $BROWSER_PKGS $PYTHON_PKGS $NODE_PKGS; do
+  if ! dpkg -s "$pkg" &>/dev/null; then
     NEED_UPDATE=true
     break
   fi
@@ -60,7 +67,7 @@ if [ "$NEED_UPDATE" = true ]; then
 fi
 
 # Install all dependencies
-for pkg in $CORE_PKGS $BROWSER_PKGS $PYTHON_PKGS; do
+for pkg in $CORE_PKGS $BROWSER_PKGS $PYTHON_PKGS $NODE_PKGS; do
   install_if_missing "$pkg"
 done
 
@@ -112,7 +119,9 @@ for VAR in $ENV_VARS; do
     # Use Bash indirect expansion to get value of variable named $VAR
     VAL="${!VAR:-}"
     if [ -n "$VAL" ]; then
-        echo "${VAR}=${VAL}" >> "$TMP_ENV"
+        # Escape single quotes and wrap in single quotes to prevent injection/word-splitting
+        ESCAPED_VAL=$(echo "$VAL" | sed "s/'/'\\\\''/g")
+        echo "${VAR}='${ESCAPED_VAL}'" >> "$TMP_ENV"
     else
         echo "⚠️  Warning: $VAR is in manifest but not set in environment"
     fi
@@ -156,39 +165,20 @@ fi
 # RUNTIME SETUP (Python)
 # ================================
 if [ "$RUNTIME" = "python" ]; then
-  echo "🐍 Python setup with Poetry"
+  echo "🐍 Python setup with uv"
 
-  PYTHON_BIN=$(which python3)
-  POETRY_BIN="/home/$DEPLOY_USER/.local/bin/poetry"
+  UV_BIN="/home/$DEPLOY_USER/.local/bin/uv"
 
-  # Install/Repair Poetry
-  if ! sudo -u "$DEPLOY_USER" [ -x "$POETRY_BIN" ] || ! sudo -u "$DEPLOY_USER" "$POETRY_BIN" --version &>/dev/null; then
-    echo "📥 Installing/Repairing Poetry using $PYTHON_BIN"
-    curl -sSL https://install.python-poetry.org | sudo -u "$DEPLOY_USER" "$PYTHON_BIN" -
+  # Install/Repair uv
+  if ! sudo -u "$DEPLOY_USER" [ -x "$UV_BIN" ] || ! sudo -u "$DEPLOY_USER" "$UV_BIN" --version &>/dev/null; then
+    echo "📥 Installing/Repairing uv"
+    curl -LsSf https://astral.sh/uv/install.sh | sudo -u "$DEPLOY_USER" env HOME="/home/$DEPLOY_USER" sh
   fi
 
   export PATH="/home/$DEPLOY_USER/.local/bin:$PATH"
 
-  # Configure Poetry
-  sudo -u "$DEPLOY_USER" "$POETRY_BIN" config virtualenvs.in-project true
-
-  # Handle .venv compatibility
-  if [ -d ".venv" ]; then
-    CUR_V=$( .venv/bin/python --version | awk '{print $2}' | cut -d. -f1,2 )
-    SYS_V=$( "$PYTHON_BIN" --version | awk '{print $2}' | cut -d. -f1,2 )
-    if [ "$CUR_V" != "$SYS_V" ]; then
-      echo "🗑️ Removing incompatible .venv ($CUR_V vs $SYS_V)"
-      sudo rm -rf .venv
-    fi
-  fi
-
-  if [ ! -d ".venv" ]; then
-    echo "📦 Creating .venv with $PYTHON_BIN"
-    sudo -u "$DEPLOY_USER" "$PYTHON_BIN" -m venv .venv
-  fi
-
   echo "📦 Installing Python dependencies"
-  sudo -u "$DEPLOY_USER" "$POETRY_BIN" install --no-root --no-interaction
+  sudo -u "$DEPLOY_USER" env HOME="/home/$DEPLOY_USER" PATH="$PATH" "$UV_BIN" sync
 
   if [ ! -d ".venv" ]; then
     echo "❌ .venv not created"
@@ -201,8 +191,13 @@ if [ "$RUNTIME" = "python" ]; then
 
     echo "🎨 Collecting static files..."
     sudo -u "$DEPLOY_USER" .venv/bin/python manage.py collectstatic --noinput
+  elif [ -f "app/main.py" ]; then
+    echo "🚀 FastAPI app detected. Initializing database schema..."
+    # Attempt to initialize DB schema if models are present
+    sudo -u "$DEPLOY_USER" .venv/bin/python -c "try: from app.db.models import Base; from app.db.session import engine; Base.metadata.create_all(bind=engine); print('✅ Database schema initialized')
+except Exception as e: print(f'ℹ️ Database auto-init skipped or failed: {e}')" || true
   else
-    echo "ℹ️ No manage.py found. Skipping Django-specific steps."
+    echo "ℹ️ No manage.py or app/main.py found. Skipping database-specific steps."
   fi
 fi
 
@@ -225,10 +220,42 @@ if [ "$RUNTIME" = "react" ]; then
 fi
 
 # ================================
+# RUNTIME SETUP (Node.js)
+# ================================
+if [ "$RUNTIME" = "node" ]; then
+  echo "🟢 Node.js setup"
+
+  if [ -f "package.json" ]; then
+    echo "📦 Installing NPM dependencies"
+    sudo -u "$DEPLOY_USER" npm install
+  else
+    echo "⚠️ Warning: Runtime is node but no package.json found."
+  fi
+fi
+
+# ================================
 # SYSTEMD (Only for persistent services)
 # ================================
-if [ "$RUNTIME" = "python" ]; then
-  echo "🔧 Creating systemd service"
+if [ "$RUNTIME" = "python" ] || [ "$RUNTIME" = "node" ]; then
+  echo "🔧 Creating systemd service for $RUNTIME"
+
+  # Determine EXEC_PATH and handle absolute/global commands
+  if [[ "$START_CMD" == /* ]] || [[ "$START_CMD" == node* ]] || [[ "$START_CMD" == python* ]] || [[ "$START_CMD" == npm* ]]; then
+    # If it's a Node app and memory limit isn't set, inject it
+    if [ "$RUNTIME" = "node" ] && [[ "$START_CMD" == node* ]] && [[ "$START_CMD" != *"--max-old-space-size"* ]]; then
+      EXEC_PATH="/usr/bin/node --max-old-space-size=256 ${START_CMD#node}"
+    else
+      EXEC_PATH="$START_CMD"
+    fi
+  else
+    # Default behavior: run from WORKDIR
+    if [ "$RUNTIME" = "node" ]; then
+      EXEC_PATH="/usr/bin/node --max-old-space-size=256 ${APP_WORKDIR}/${START_CMD:-index.js}"
+    else
+      EXEC_PATH="${APP_WORKDIR}/${START_CMD}"
+    fi
+  fi
+
   sudo tee "/etc/systemd/system/${APP_NAME}.service" > /dev/null <<EOF
 [Unit]
 Description=${APP_NAME}
@@ -242,10 +269,10 @@ UMask=0002
 $(if [ -n "$APP_SECRET_PATH" ]; then echo "Environment=APP_SECRET_JSON=${APP_SECRET_PATH}"; fi)
 EnvironmentFile=-${APP_WORKDIR}/.env
 Environment=TZ=${TIMEZONE}
-Environment=PYTHONPATH=${APP_WORKDIR}
-Environment=PATH=/home/ubuntu/.local/bin:/usr/bin:/bin
+$(if [ "$RUNTIME" = "python" ]; then echo "Environment=PYTHONPATH=${APP_WORKDIR}"; fi)
+Environment=PATH=/home/ubuntu/.local/bin:/usr/bin:/bin:/usr/local/bin
 
-ExecStart=${APP_WORKDIR}/${START_CMD}
+ExecStart=${EXEC_PATH}
 
 Restart=always
 RestartSec=3
@@ -273,7 +300,7 @@ if [ "$RUNTIME" = "react" ]; then
     try_files \$uri \$uri/ /index.html;
   }"
 else
-  # Python: Proxy to the local port + static/media
+  # Python/Node: Proxy to the local port + static/media
   NGINX_LOCATIONS="
   location /static/ {
     alias ${APP_WORKDIR}/staticfiles/;
