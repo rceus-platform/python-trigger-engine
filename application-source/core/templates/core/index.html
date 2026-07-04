@@ -401,6 +401,7 @@
                         <input type="url" name="url" id="urlInput" placeholder="https://www.instagram.com/reel/..."
                             required />
                         <div class="action-buttons">
+                            <button type="button" id="demoBtn" class="secondary-btn">Demo URL</button>
                             <button type="button" id="pasteBtn" class="secondary-btn">Paste</button>
                             <button type="button" id="clearBtn" class="secondary-btn">Clear</button>
                         </div>
@@ -458,6 +459,7 @@
     <script>
         const form = document.getElementById("reelForm");
         const urlInput = document.getElementById("urlInput");
+        const demoBtn = document.getElementById("demoBtn");
         const pasteBtn = document.getElementById("pasteBtn");
         const clearBtn = document.getElementById("clearBtn");
         const button = document.getElementById("submitBtn");
@@ -507,6 +509,10 @@
                 }
             }, 100);
         }
+
+        demoBtn.addEventListener("click", () => {
+            urlInput.value = "https://www.instagram.com/reel/DZH7EkPuUmv/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==";
+        });
 
         pasteBtn.addEventListener("click", async () => {
             try {

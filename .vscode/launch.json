@@ -9,12 +9,12 @@
             "python": "${workspaceFolder}/application-source/.venv/bin/python",
             "args": [
                 "runserver",
-                "0.0.0.0:8000",
-                "--reload"
+                "0.0.0.0:8000"
             ],
             "django": true,
             "justMyCode": true,
             "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/application-source",
             "envFile": "${workspaceFolder}/application-source/.env",
             "env": {
                 "PYTHONDONTWRITEBYTECODE": "1",
@@ -33,6 +33,7 @@
             "django": true,
             "justMyCode": true,
             "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/application-source",
             "envFile": "${workspaceFolder}/application-source/.env",
             "env": {
                 "PYTHONDONTWRITEBYTECODE": "1",
