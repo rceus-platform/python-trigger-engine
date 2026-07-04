@@ -33,13 +33,13 @@ if os.path.exists(SECRET_PATH):
         _secrets = json.load(f)
 
     GEMINI_API_KEYS = [
-        _secrets.get("GEMINI_API_KEY_1"),
-        _secrets.get("GEMINI_API_KEY_2"),
+        os.getenv("GEMINI_API_KEY_1") or _secrets.get("GEMINI_API_KEY_1"),
+        os.getenv("GEMINI_API_KEY_2") or _secrets.get("GEMINI_API_KEY_2"),
     ]
-    EMAIL_HOST_PASSWORD = _secrets.get("EMAIL_HOST_PASSWORD")
-    GDRIVE_FOLDER_ID = _secrets.get("GDRIVE_FOLDER_ID")
-    DEEPGRAM_API_KEY = _secrets.get("DEEPGRAM_API_KEY")
-    SITE_PASSCODE = _secrets.get("SITE_PASSCODE")
+    EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD") or _secrets.get("EMAIL_HOST_PASSWORD")
+    GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID") or _secrets.get("GDRIVE_FOLDER_ID")
+    DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY") or _secrets.get("DEEPGRAM_API_KEY")
+    SITE_PASSCODE = os.getenv("SITE_PASSCODE") or _secrets.get("SITE_PASSCODE")
 
 else:
     # --- Local development (.env) ---
