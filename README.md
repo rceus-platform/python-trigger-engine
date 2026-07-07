@@ -103,4 +103,4 @@ To schedule daily recall emails (9am, 12pm, 3pm, 6pm, 9pm) in a production envir
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under MIT License.
