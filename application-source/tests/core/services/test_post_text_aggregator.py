@@ -16,10 +16,7 @@ from core.services.post_text_aggregator import (
 def test_extract_shortcode_valid_url():
     """Test standard extraction of shortcode from valid URLs."""
     assert _extract_shortcode("https://instagram.com/p/ABCDEFG/") == "ABCDEFG"
-    assert (
-        _extract_shortcode("https://instagram.com/p/123456?igshid=xyz")
-        == "123456"
-    )
+    assert _extract_shortcode("https://instagram.com/p/123456?igshid=xyz") == "123456"
 
 
 def test_extract_shortcode_invalid_url():
@@ -123,9 +120,7 @@ def test_download_instagram_post_total_failure(
     # Force fallback to fail
     mock_get.side_effect = Exception("Network error")
 
-    with pytest.raises(
-        RuntimeError, match="Both Instaloader and fallback failed"
-    ):
+    with pytest.raises(RuntimeError, match="Both Instaloader and fallback failed"):
         download_instagram_post("https://instagram.com/p/SHORTCODE/")
 
 
@@ -139,9 +134,7 @@ def test_download_instagram_post_no_images(mock_from_shortcode, _mock_loader):
     mock_post.is_video = True
     mock_from_shortcode.return_value = mock_post
 
-    with pytest.raises(
-        RuntimeError, match="Instagram post has no downloadable images"
-    ):
+    with pytest.raises(RuntimeError, match="Instagram post has no downloadable images"):
         download_instagram_post("https://instagram.com/p/SHORTCODE/")
 
 
@@ -185,65 +178,60 @@ def test_download_instagram_post_fallback_download_fail(
     mock_instance = mock_instaloader.return_value
     mock_instance.context._session.send = MagicMock()
 
-    with patch(
-        "core.services.post_text_aggregator.instaloader.Post.from_shortcode",
-        side_effect=Exception("Instaloader Fail"),
+    with (
+        patch(
+            "core.services.post_text_aggregator.instaloader.Post.from_shortcode",
+            side_effect=Exception("Instaloader Fail"),
+        ),
+        patch("core.services.post_text_aggregator.MEDIA_DIR", tmp_path),
     ):
-        with patch("core.services.post_text_aggregator.MEDIA_DIR", tmp_path):
-            # Mock initial page request success, but inner image download fails
-            mock_page_response = MagicMock()
-            mock_page_response.text = (
-                '<html><meta property="og:image" '
-                'content="https://img.com/fall.jpg"></html>'
-            )
+        # Mock initial page request success, but inner image download fails
+        mock_page_response = MagicMock()
+        mock_page_response.text = (
+            '<html><meta property="og:image" content="https://img.com/fall.jpg"></html>'
+        )
 
-            mock_img_response = MagicMock()
-            mock_img_response.raise_for_status.side_effect = Exception(
-                "404 Image Not Found"
-            )
+        mock_img_response = MagicMock()
+        mock_img_response.raise_for_status.side_effect = Exception(
+            "404 Image Not Found"
+        )
 
-            mock_get.side_effect = [mock_page_response, mock_img_response]
+        mock_get.side_effect = [mock_page_response, mock_img_response]
 
-            with pytest.raises(
-                RuntimeError, match="Both Instaloader and fallback failed"
-            ):
-                download_instagram_post("https://instagram.com/p/fail/")
+        with pytest.raises(RuntimeError, match="Both Instaloader and fallback failed"):
+            download_instagram_post("https://instagram.com/p/fail/")
 
 
 @patch("core.services.post_text_aggregator.instaloader.Instaloader")
-def test_download_instagram_post_video_carousel_skips(
-    mock_instaloader, tmp_path
-):
+def test_download_instagram_post_video_carousel_skips(mock_instaloader, tmp_path):
     """Test videos inside sidecars are correctly skipped during download."""
     mock_instance = mock_instaloader.return_value
     mock_instance.context._session.send = MagicMock()
 
-    with patch(
-        "core.services.post_text_aggregator.instaloader.Post.from_shortcode"
-    ) as mock_from_shortcode:
-        with patch("core.services.post_text_aggregator.MEDIA_DIR", tmp_path):
-            mock_post = MagicMock()
-            mock_post.typename = "GraphSidecar"
+    with (
+        patch(
+            "core.services.post_text_aggregator.instaloader.Post.from_shortcode"
+        ) as mock_from_shortcode,
+        patch("core.services.post_text_aggregator.MEDIA_DIR", tmp_path),
+    ):
+        mock_post = MagicMock()
+        mock_post.typename = "GraphSidecar"
 
-            # Node 1 is a video (skipped), Node 2 is an image (downloaded)
-            mock_node_video = MagicMock(is_video=True)
-            mock_node_image = MagicMock(
-                is_video=False, display_url="http://image"
-            )
-            mock_post.get_sidecar_nodes.return_value = iter(
-                [mock_node_video, mock_node_image]
-            )
-            mock_from_shortcode.return_value = mock_post
+        # Node 1 is a video (skipped), Node 2 is an image (downloaded)
+        mock_node_video = MagicMock(is_video=True)
+        mock_node_image = MagicMock(is_video=False, display_url="http://image")
+        mock_post.get_sidecar_nodes.return_value = iter(
+            [mock_node_video, mock_node_image]
+        )
+        mock_from_shortcode.return_value = mock_post
 
-            def _fake_download(stem, _url, _date):
-                path = Path(str(stem) + ".jpg")
-                path.write_text(
-                    "fake", encoding="utf-8"
-                )  # pylint: disable=unspecified-encoding
+        def _fake_download(stem, _url, _date):
+            path = Path(str(stem) + ".jpg")
+            path.write_text("fake", encoding="utf-8")  # pylint: disable=unspecified-encoding
 
-            mock_instance.download_pic.side_effect = _fake_download
+        mock_instance.download_pic.side_effect = _fake_download
 
-            paths = download_instagram_post("https://instagram.com/p/multi/")
+        paths = download_instagram_post("https://instagram.com/p/multi/")
 
-            assert len(paths) == 1
-            assert paths[0].name.endswith("_1.jpg")  # Second index (1)
+        assert len(paths) == 1
+        assert paths[0].name.endswith("_1.jpg")  # Second index (1)

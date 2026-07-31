@@ -12,14 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 
-from core.constants import (
-    EMAIL_HOST,
-    EMAIL_HOST_PASSWORD,
-    EMAIL_HOST_USER,
-    EMAIL_PORT,
-    EMAIL_USE_TLS,
-    SITE_PASSCODE,
-)
+from core import constants
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -139,17 +132,17 @@ STATICFILES_DIRS = [
 ]
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = EMAIL_HOST
-EMAIL_PORT = EMAIL_PORT
-EMAIL_USE_TLS = EMAIL_USE_TLS
-EMAIL_HOST_USER = EMAIL_HOST_USER
-EMAIL_HOST_PASSWORD = EMAIL_HOST_PASSWORD
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_HOST = constants.EMAIL_HOST
+EMAIL_PORT = constants.EMAIL_PORT
+EMAIL_USE_TLS = constants.EMAIL_USE_TLS
+EMAIL_HOST_USER = constants.EMAIL_HOST_USER
+EMAIL_HOST_PASSWORD = constants.EMAIL_HOST_PASSWORD
+DEFAULT_FROM_EMAIL = constants.EMAIL_HOST_USER
 
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
-SITE_PASSCODE = SITE_PASSCODE
+SITE_PASSCODE = constants.SITE_PASSCODE
 LOGIN_URL = "auth-gateway"
 LOGIN_REDIRECT_URL = "ui-index"
 LOGOUT_REDIRECT_URL = "login"

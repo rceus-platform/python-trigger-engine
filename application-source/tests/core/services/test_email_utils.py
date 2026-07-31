@@ -40,9 +40,7 @@ def test_attach_audio_if_small_too_large():
 @patch("builtins.open", new_callable=mock_open, read_data=b"fake audio data")
 @patch("os.path.exists", return_value=True)
 @patch("os.path.getsize", return_value=100)
-@patch(
-    "core.services.email_utils.guess_type", return_value=("audio/mpeg", None)
-)
+@patch("core.services.email_utils.guess_type", return_value=("audio/mpeg", None))
 def test_attach_audio_if_small_success(
     _mock_guess, _mock_size, _mock_exists, _mock_file
 ):

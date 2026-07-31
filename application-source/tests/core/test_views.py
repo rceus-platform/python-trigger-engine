@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import ReelInsight
-from core.views import background_process_reel
+from core.views import process_reel_task
 
 pytestmark = pytest.mark.django_db
 
@@ -34,13 +34,10 @@ class ErrorEmailTest(TestCase):
         )
 
         # Simulate a failure in download_reel
-        mock_download.side_effect = Exception("Simulated Download Failure")
+        mock_download.side_effect = RuntimeError("Simulated Download Failure")
 
-        # We need to call background_process_reel directly since the view just
-        # enqueues
-        background_process_reel(
-            insight.pk, "https://www.instagram.com/reel/test/"
-        )
+        with self.assertRaises(RuntimeError):
+            process_reel_task(insight.pk, "https://www.instagram.com/reel/test/")
 
         # Verify send_error_email was called
         mock_send_email.assert_called_once()
@@ -181,9 +178,7 @@ def test_process_reel_no_url(client):
         "/api/process-reel/", json.dumps({}), content_type="application/json"
     )
     assert response.status_code == 400
-    assert (
-        "Valid Instagram URL required" in response.json()["error"]["message"]
-    )
+    assert "Valid Instagram URL required" in response.json()["error"]["message"]
 
 
 def test_process_reel_cache_hit_processed(client):
@@ -204,8 +199,8 @@ def test_process_reel_cache_hit_processed(client):
     assert data["id"] == insight.pk
 
 
-@patch("core.views.async_task")
-def test_process_reel_cache_hit_processing_restart(mock_async, client):
+@patch("core.views.process_reel_task")
+def test_process_reel_cache_hit_processing_restart(mock_process_task, client):
     """Test process_reel recovering stuck jobs and rescheduling safely."""
     # Simulate a stuck task that's older than 5 minutes
     past_time = timezone.now() - timezone.timedelta(minutes=6)
@@ -225,17 +220,13 @@ def test_process_reel_cache_hit_processing_restart(mock_async, client):
     data = response.json()
     assert data["status"] == "processing"
     assert data["id"] == insight.pk
-    # Should restart the async task
-    mock_async.assert_called_once_with(
-        "core.views.background_process_reel",
-        insight.pk,
-        "https://instagram.com/p/123",
-    )
+    # Since processing is synchronous, rescheduling is not needed
+    mock_process_task.assert_not_called()
 
 
-@patch("core.views.async_task")
+@patch("core.views.process_reel_task")
 @patch("core.views.get_reel_metadata")
-def test_process_reel_metadata_source_id_cache(mock_meta, _mock_async, client):
+def test_process_reel_metadata_source_id_cache(mock_meta, _mock_process_task, client):
     """Test process_reel cache resolution matching IDs directly safely."""
     # Tests the scenario where URL differs but source_id is the same
     ReelInsight.objects.create(
@@ -258,11 +249,9 @@ def test_process_reel_metadata_source_id_cache(mock_meta, _mock_async, client):
     assert data["title"] == "From Metadata"
 
 
-@patch("core.views.async_task")
-@patch(
-    "core.views.get_reel_metadata", side_effect=Exception("Failed to get meta")
-)
-def test_process_reel_new_record(_mock_meta, mock_async, client):
+@patch("core.views.process_reel_task")
+@patch("core.views.get_reel_metadata", side_effect=Exception("Failed to get meta"))
+def test_process_reel_new_record(_mock_meta, mock_process_task, client):
     """Test process_reel fully routing valid new jobs out safely."""
     response = client.post(
         "/api/process-reel/",
@@ -271,15 +260,14 @@ def test_process_reel_new_record(_mock_meta, mock_async, client):
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "processing"
+    assert data["status"] == "complete"
     insight_id = data["id"]
 
     # Insight should be created
     insight = ReelInsight.objects.get(pk=insight_id)
     assert insight.source_url == "https://instagram.com/reel/newone"
 
-    mock_async.assert_called_once_with(
-        "core.views.background_process_reel",
+    mock_process_task.assert_called_once_with(
         insight.pk,
         "https://instagram.com/reel/newone",
     )
@@ -300,9 +288,7 @@ def test_process_reel_exception(client):
 @patch("core.views.download_instagram_post")
 @patch("core.views.extract_post_text")
 @patch("core.services.email_new_reel.send_new_reel_email")
-def test_background_process_reel_post(
-    mock_send_email, mock_extract, mock_download
-):
+def test_process_reel_task_post(mock_send_email, mock_extract, mock_download):
     """Test the complete background pipeline handling posts correctly."""
     insight = ReelInsight.objects.create(
         source_url="https://instagram.com/p/123", title="Pending"
@@ -318,7 +304,7 @@ def test_background_process_reel_post(
         "title": "Extracted Post Title",
     }
 
-    background_process_reel(insight.pk, "https://instagram.com/p/123")
+    process_reel_task(insight.pk, "https://instagram.com/p/123")
 
     insight.refresh_from_db()
     assert insight.original_language == "es"
@@ -335,7 +321,7 @@ def test_background_process_reel_post(
 @patch("core.views.compute_audio_hash")
 @patch("core.views.gemini_transcribe")
 @patch("core.services.email_new_reel.send_new_reel_email")
-def test_background_process_reel_video(
+def test_process_reel_task_video(
     mock_send_email,
     mock_transcribe,
     mock_hash,
@@ -362,7 +348,7 @@ def test_background_process_reel_video(
         "title": "Video Title",
     }
 
-    background_process_reel(insight.pk, "https://instagram.com/reel/123")
+    process_reel_task(insight.pk, "https://instagram.com/reel/123")
 
     insight.refresh_from_db()
     assert insight.audio_hash == "newhash123"
@@ -376,7 +362,7 @@ def test_background_process_reel_video(
 @patch("core.views.extract_audio_for_gemini")
 @patch("core.views.compute_audio_hash")
 @patch("core.services.email_new_reel.send_new_reel_email")
-def test_background_process_reel_duplicate_hash(
+def test_process_reel_task_duplicate_hash(
     mock_send_email, mock_hash, mock_extract_audio, mock_download
 ):
     """Test background task copying previous transcription effectively."""
@@ -402,7 +388,7 @@ def test_background_process_reel_duplicate_hash(
     mock_extract_audio.return_value = mock_audio_path
     mock_hash.return_value = "samehash456"
 
-    background_process_reel(insight.pk, "https://instagram.com/reel/456")
+    process_reel_task(insight.pk, "https://instagram.com/reel/456")
 
     insight.refresh_from_db()
     assert (

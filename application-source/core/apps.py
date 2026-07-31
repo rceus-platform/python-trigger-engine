@@ -11,4 +11,3 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         """Register application components."""
-        pass

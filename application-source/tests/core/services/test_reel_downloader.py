@@ -18,10 +18,7 @@ from core.services.reel_downloader import (
 
 def test_extract_shortcode_valid():
     """Test extracting shortcode from valid reel URL."""
-    assert (
-        _extract_shortcode("https://instagram.com/reel/AaBbCcDd/")
-        == "AaBbCcDd"
-    )
+    assert _extract_shortcode("https://instagram.com/reel/AaBbCcDd/") == "AaBbCcDd"
     assert _extract_shortcode("https://instagram.com/p/123456/") == "123456"
 
 
@@ -77,9 +74,7 @@ def test_download_file_mocked(_mock_open, _mock_mkdir, mock_requests_get):
     mock_requests_get.return_value = mock_resp
 
     _download_file("http://cdn.mp4", Path("/tmp/file.mp4"))
-    mock_requests_get.assert_called_once_with(
-        "http://cdn.mp4", stream=True, timeout=60
-    )
+    mock_requests_get.assert_called_once_with("http://cdn.mp4", stream=True, timeout=60)
     mock_resp.raise_for_status.assert_called_once()
     _mock_open.assert_called_once_with(Path("/tmp/file.mp4"), "wb")
 
@@ -173,9 +168,7 @@ def test_download_reel_403(mock_curl_get):
     """Test handling HTTP 403 on fetching reel webpage."""
     mock_curl_get.return_value.status_code = 403
 
-    with pytest.raises(
-        RuntimeError, match="Failed to fetch reel page \\(HTTP 403\\)"
-    ):
+    with pytest.raises(RuntimeError, match="Failed to fetch reel page \\(HTTP 403\\)"):
         download_reel("https://instagram.com/reel/shorty/")
 
 
@@ -186,9 +179,7 @@ def test_download_reel_json_success(mock_curl_get, mock_download):
     mock_resp = MagicMock(status_code=200)
     # Provide a page with the correct embedded json structure inside a script
     # tag
-    script_data = json.dumps(
-        {"video_versions": [{"url": "http://json_video.mp4"}]}
-    )
+    script_data = json.dumps({"video_versions": [{"url": "http://json_video.mp4"}]})
     mock_resp.text = (
         '<html><body><script type="application/json">'
         f"{script_data}</script></body></html>"
@@ -201,9 +192,7 @@ def test_download_reel_json_success(mock_curl_get, mock_download):
     result = download_reel("https://instagram.com/reel/ABC/")
 
     assert result == expected_path
-    mock_download.assert_called_once_with(
-        "http://json_video.mp4", expected_path
-    )
+    mock_download.assert_called_once_with("http://json_video.mp4", expected_path)
 
 
 @patch("core.services.reel_downloader._download_file")
@@ -219,9 +208,7 @@ def test_download_reel_json_success_alternative(mock_curl_get, mock_dl):
     )
     mock_dl.return_value = Path("test.mp4")
 
-    assert download_reel("https://instagram.com/reel/shorty/") == Path(
-        "test.mp4"
-    )
+    assert download_reel("https://instagram.com/reel/shorty/") == Path("test.mp4")
     mock_dl.assert_called_once()
     assert mock_dl.call_args[0][0] == "http://json_video"
 
@@ -233,8 +220,7 @@ def test_download_reel_regex_fallback_success(mock_curl_get, mock_download):
     mock_resp = MagicMock(status_code=200)
     # No useful JSON, but raw html contains a matching CDN url
     mock_curl_get.return_value.text = (
-        '<html> "https://instagram.fcow1-2.fna.fbcdn.net/'
-        'v/test/video.mp4xyz" </html>'
+        '<html> "https://instagram.fcow1-2.fna.fbcdn.net/v/test/video.mp4xyz" </html>'
     )
     mock_curl_get.return_value = mock_resp
 
@@ -262,9 +248,7 @@ def test_download_reel_regex_success(mock_curl_get, mock_dl):
     """
     mock_dl.return_value = Path("test_regex.mp4")
 
-    assert download_reel("https://instagram.com/reel/shorty/") == Path(
-        "test_regex.mp4"
-    )
+    assert download_reel("https://instagram.com/reel/shorty/") == Path("test_regex.mp4")
     mock_dl.assert_called_once()
     assert mock_dl.call_args[0][0] == "https://instagram.fxxx.mp4?abc"
 
@@ -277,9 +261,7 @@ def test_download_reel_complete_failure(mock_curl_get):
     mock_resp.text = "<html><body></body></html>"
     mock_curl_get.return_value = mock_resp
 
-    with pytest.raises(
-        RuntimeError, match="Could not find a playable video URL"
-    ):
+    with pytest.raises(RuntimeError, match="Could not find a playable video URL"):
         download_reel("https://instagram.com/reel/ABC/")
 
 
@@ -290,9 +272,7 @@ def test_download_reel_missing_all(mock_curl_get):
     mock_curl_get.return_value.status_code = 200
     mock_curl_get.return_value.text = "<html><body>No video here</body></html>"
 
-    with pytest.raises(
-        RuntimeError, match="Could not find a playable video URL"
-    ):
+    with pytest.raises(RuntimeError, match="Could not find a playable video URL"):
         download_reel("https://instagram.com/reel/shorty/")
 
 
@@ -309,9 +289,7 @@ def test_download_reel_invalid_json(mock_curl_get, _mock_dl):
         "</html>\n"
     )
 
-    with pytest.raises(
-        RuntimeError, match="Could not find a playable video URL"
-    ):
+    with pytest.raises(RuntimeError, match="Could not find a playable video URL"):
         download_reel("https://instagram.com/reel/shorty/")
 
 
@@ -327,9 +305,7 @@ def test_download_reel_json_empty_video_versions(mock_curl_get, _mock_dl):
     </html>
     """
 
-    with pytest.raises(
-        RuntimeError, match="Could not find a playable video URL"
-    ):
+    with pytest.raises(RuntimeError, match="Could not find a playable video URL"):
         download_reel("https://instagram.com/reel/shorty/")
 
 
@@ -346,7 +322,5 @@ def test_download_reel_json_missing_url(mock_curl_get, _mock_dl):
         "</html>\n"
     )
 
-    with pytest.raises(
-        RuntimeError, match="Could not find a playable video URL"
-    ):
+    with pytest.raises(RuntimeError, match="Could not find a playable video URL"):
         download_reel("https://instagram.com/reel/shorty/")

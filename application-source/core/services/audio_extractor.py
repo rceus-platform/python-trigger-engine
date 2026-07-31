@@ -47,8 +47,7 @@ def extract_audio_for_gemini(video_path: Path, bitrate: str = "64k") -> Path:
     try:
         subprocess.run(
             command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
             check=True,
         )

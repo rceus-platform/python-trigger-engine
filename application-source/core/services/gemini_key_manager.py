@@ -1,7 +1,7 @@
 """Shared helper for rotating Gemini API keys."""
 
 import time
-from typing import Iterable
+from collections.abc import Iterable
 
 from google import genai
 

@@ -3,7 +3,6 @@
 import json
 import logging
 import traceback
-from datetime import date
 from pathlib import Path
 
 from django.conf import settings
@@ -12,6 +11,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+
 from core.models import ReelInsight
 from core.services.audio_extractor import extract_audio_for_gemini
 from core.services.audio_hash import compute_audio_hash
@@ -81,16 +81,23 @@ def process_reel_task(insight_id: int, url: str):
     image_paths: list[Path] = []
 
     try:
+        is_video = not _is_instagram_post_url(url)
+
         if _is_instagram_post_url(url):
-            image_paths = download_instagram_post(url)
-            result = extract_post_text(image_paths)
-            language = result["language"]
-            transcript_original = result["transcript_native"]
-            transcript_english = result["transcript_english"]
-            triggers_list = result.get("triggers", [])
-            title = result.get("title", "New Post Processed")
-        else:
-            video_path = download_reel(url)
+            try:
+                logger.info("Attempting to download post as a video first: %s", url)
+                video_path = download_reel(url)
+                is_video = True
+            except Exception as e:  # noqa: BLE001
+                logger.info(
+                    "Post is not a video or video download failed, using image workflow: %s",
+                    e,
+                )
+                video_path = None
+
+        if is_video:
+            if not video_path:
+                video_path = download_reel(url)
             audio_path = extract_audio_for_gemini(video_path)
             audio_hash = compute_audio_hash(audio_path)
 
@@ -110,7 +117,7 @@ def process_reel_task(insight_id: int, url: str):
                 insight.triggers = existing.triggers
                 insight.title = existing.title
                 insight.processed_at = timezone.now()
-                insight.audio_hash = None # Clear instead of duplicate to avoid IntegrityError (unique=True)
+                insight.audio_hash = None  # Clear instead of duplicate to avoid IntegrityError (unique=True)
                 insight.save()
                 return
 
@@ -119,7 +126,18 @@ def process_reel_task(insight_id: int, url: str):
             transcript_original = result["transcript_native"]
             transcript_english = result["transcript_english"]
             triggers_list = result.get("triggers", [])
-            title = result.get("title", "New Reel Processed")
+            title = result.get(
+                "title",
+                "New Reel Processed" if "/reel/" in url else "New Video Post Processed",
+            )
+        else:
+            image_paths = download_instagram_post(url)
+            result = extract_post_text(image_paths)
+            language = result["language"]
+            transcript_original = result["transcript_native"]
+            transcript_english = result["transcript_english"]
+            triggers_list = result.get("triggers", [])
+            title = result.get("title", "New Post Processed")
 
         insight.original_language = language
         insight.transcript_original = transcript_original
@@ -130,7 +148,7 @@ def process_reel_task(insight_id: int, url: str):
 
         if audio_path:
             insight.audio_hash = compute_audio_hash(audio_path)
-            setattr(insight, "audio_path_for_email", str(audio_path))
+            insight.audio_path_for_email = str(audio_path)
 
         insight.save()
 
@@ -212,8 +230,8 @@ def process_reel(request):
                             return JsonResponse(
                                 {"status": "processing", "id": existing.pk}
                             )
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Failed to check metadata cache: %s", e)
 
         # Create PENDING record
         insight = ReelInsight.objects.create(
@@ -276,7 +294,7 @@ def daily_recall(_request):
     triggers = get_daily_triggers(limit=5)
     return JsonResponse(
         {
-            "date": date.today().isoformat(),
+            "date": timezone.localdate().isoformat(),
             "count": len(triggers),
             "triggers": triggers,
         }

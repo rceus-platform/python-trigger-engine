@@ -78,17 +78,17 @@ def test_cleanup_media(tmp_path):
     media_dir_mock.exists.return_value = True
     media_dir_mock.iterdir.return_value = [mock_old, mock_new]
 
-    with patch(
-        "core.management.commands.cleanup_media.MEDIA_DIR", media_dir_mock
-    ):
-        with patch(
+    with (
+        patch("core.management.commands.cleanup_media.MEDIA_DIR", media_dir_mock),
+        patch(
             "core.management.commands.cleanup_media.time.time",
             return_value=5000,
-        ):
-            # The exact time logic: age = now - st_mtime > 3600
-            # For old: age = 5000 - 1000 = 4000 > 3600 -> DELETED
-            # For new: age = 5000 - 9000 = -4000 < 3600 -> NOT DELETED
-            call_command("cleanup_media", stdout=out)
+        ),
+    ):
+        # The exact time logic: age = now - st_mtime > 3600
+        # For old: age = 5000 - 1000 = 4000 > 3600 -> DELETED
+        # For new: age = 5000 - 9000 = -4000 < 3600 -> NOT DELETED
+        call_command("cleanup_media", stdout=out)
 
     # Verify unlinks
     mock_old.unlink.assert_called_once()

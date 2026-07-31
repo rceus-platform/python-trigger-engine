@@ -29,9 +29,7 @@ def test_gemini_transcribe_success(mock_file):
 def test_gemini_transcribe_markdown_json(_mock_file, mock_google_genai_client):
     """Test transcription when the response is a markdown JSON block."""
     # Setup response with markdown json block
-    setup_mock_response(
-        mock_google_genai_client, '```json\n{"language": "en"}\n```'
-    )
+    setup_mock_response(mock_google_genai_client, '```json\n{"language": "en"}\n```')
     result = gemini_transcribe("test.wav")
     assert result["language"] == "en"
 
@@ -61,9 +59,7 @@ def test_gemini_transcribe_invalid_json(
     mock_key_manager, _mock_file, mock_google_genai_client
 ):
     """Test transcription when the AI returns invalid JSON."""
-    setup_mock_response(
-        mock_google_genai_client, "This is just text, not JSON"
-    )
+    setup_mock_response(mock_google_genai_client, "This is just text, not JSON")
 
     mock_key_manager.key_count = 1
     valid_key = GEMINI_API_KEYS[0] if GEMINI_API_KEYS else "dummy_key"
@@ -85,9 +81,7 @@ def test_gemini_transcribe_quota_error(
     # Setup client to raise a ClientError for quota
     error_resp = MagicMock()
     error_resp.text = "RESOURCE_EXHAUSTED quota exceeded"
-    error_mock = ClientError(
-        "RESOURCE_EXHAUSTED quota exceeded", response=error_resp
-    )
+    error_mock = ClientError("RESOURCE_EXHAUSTED quota exceeded", response=error_resp)
     mock_google_genai_client.models.generate_content.side_effect = error_mock
 
     # Manager has 1 key
@@ -98,9 +92,7 @@ def test_gemini_transcribe_quota_error(
         mock_google_genai_client,
     )
 
-    with pytest.raises(
-        RuntimeError, match="AI quota exceeded on all Gemini keys"
-    ):
+    with pytest.raises(RuntimeError, match="AI quota exceeded on all Gemini keys"):
         gemini_transcribe("test.mp3")
 
     mock_key_manager.cooldown_key.assert_called_once_with(valid_key)
@@ -125,9 +117,7 @@ def test_gemini_transcribe_invalid_key_error(
         mock_google_genai_client,
     )
 
-    with pytest.raises(
-        RuntimeError, match="AI quota exceeded on all Gemini keys"
-    ):
+    with pytest.raises(RuntimeError, match="AI quota exceeded on all Gemini keys"):
         gemini_transcribe("test.mp3")
 
     mock_key_manager.disable_key.assert_called_once_with(valid_key)
@@ -197,9 +187,7 @@ def test_gemini_transcribe_client_error_quota(mocked_open, mock_key_manager):
     mock_client.models.generate_content.side_effect = error
     mock_key_manager.get_client.return_value = ("testkey", mock_client)
 
-    with pytest.raises(
-        RuntimeError, match="AI quota exceeded on all Gemini keys"
-    ):
+    with pytest.raises(RuntimeError, match="AI quota exceeded on all Gemini keys"):
         gemini_transcribe("test.mp3")
 
     mock_key_manager.cooldown_key.assert_called_once_with("testkey")
@@ -209,9 +197,7 @@ def test_gemini_transcribe_client_error_quota(mocked_open, mock_key_manager):
 @patch("core.services.gemini_transcriber.ClientError", FakeClientError)
 @patch("core.services.gemini_transcriber.KEY_MANAGER")
 @patch("builtins.open", new_callable=MagicMock)
-def test_gemini_transcribe_client_error_invalid_key(
-    mocked_open, mock_key_manager
-):
+def test_gemini_transcribe_client_error_invalid_key(mocked_open, mock_key_manager):
     """Test transcription handles invalid key client errors correctly."""
     mock_file = MagicMock()
     mock_file.read.return_value = b"fakeaudio"
@@ -224,9 +210,7 @@ def test_gemini_transcribe_client_error_invalid_key(
     mock_client.models.generate_content.side_effect = error
     mock_key_manager.get_client.return_value = ("testkey", mock_client)
 
-    with pytest.raises(
-        RuntimeError, match="AI quota exceeded on all Gemini keys"
-    ):
+    with pytest.raises(RuntimeError, match="AI quota exceeded on all Gemini keys"):
         gemini_transcribe("test.mp3")
 
     mock_key_manager.disable_key.assert_called_once_with("testkey")

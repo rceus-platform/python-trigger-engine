@@ -10,7 +10,7 @@ Robust multi-strategy approach (all cookie-aware):
 import json
 import logging
 import re
-from http.cookiejar import MozillaCookieJar
+from http.cookiejar import LoadError, MozillaCookieJar
 from pathlib import Path
 
 import instaloader
@@ -41,7 +41,7 @@ def _load_cookies_dict() -> dict[str, str]:
         jar = MozillaCookieJar(str(path))
         jar.load(ignore_discard=True, ignore_expires=True)
         return {c.name: c.value for c in jar if ".instagram.com" in (c.domain or "")}
-    except Exception as e:
+    except (LoadError, OSError) as e:
         logger.warning("Failed to load cookies from %s: %s", path, e)
         return {}
 
@@ -79,7 +79,9 @@ def _save_image_from_url(
     resp.raise_for_status()
     save_path = MEDIA_DIR / f"{shortcode}_{suffix}.jpg"
     save_path.write_bytes(resp.content)
-    logger.info("Saved fallback image: %s (%d bytes)", save_path.name, len(resp.content))
+    logger.info(
+        "Saved fallback image: %s (%d bytes)", save_path.name, len(resp.content)
+    )
     return save_path
 
 
@@ -235,7 +237,10 @@ def _try_embed_page(shortcode: str) -> list[Path]:
     # --- JSON extraction from <script> tags ---
     sel = Selector(text=html)
     for script_content in sel.css("script::text").getall():
-        if "display_url" not in script_content and "display_resources" not in script_content:
+        if (
+            "display_url" not in script_content
+            and "display_resources" not in script_content
+        ):
             continue
         try:
             json_data = json.loads(script_content)
@@ -320,7 +325,7 @@ def _try_direct_page(post_url: str, shortcode: str) -> list[Path]:
                     )
                 ]
 
-        except Exception as strategy_err:
+        except Exception as strategy_err:  # noqa: BLE001
             last_err = strategy_err
             continue
 
@@ -364,7 +369,9 @@ def _try_ytdlp_thumbnail(post_url: str, shortcode: str) -> list[Path]:
     resp = plain_requests.get(thumbnail, timeout=20, stream=True)
     resp.raise_for_status()
     save_path.write_bytes(resp.content)
-    logger.info("Saved yt-dlp thumbnail: %s (%d bytes)", save_path.name, len(resp.content))
+    logger.info(
+        "Saved yt-dlp thumbnail: %s (%d bytes)", save_path.name, len(resp.content)
+    )
     return [save_path]
 
 
@@ -395,10 +402,8 @@ def download_instagram_post(post_url: str) -> list[Path]:
             if paths:
                 logger.info("Strategy '%s' succeeded for post %s", name, shortcode)
                 return paths
-        except Exception as e:
-            logger.warning(
-                "Strategy '%s' failed for post %s: %s", name, shortcode, e
-            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Strategy '%s' failed for post %s: %s", name, shortcode, e)
             last_err = e
 
     raise RuntimeError(

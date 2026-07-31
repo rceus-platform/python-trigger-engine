@@ -43,12 +43,8 @@ def test_parse_json_object_embedded_snippet():
 
 def test_parse_json_object_invalid():
     """Test parsing invalid JSON object raises RuntimeError."""
-    with pytest.raises(
-        RuntimeError, match="AI returned invalid post text JSON"
-    ):
-        _parse_json_object(
-            "This is completely free of any braces or json structure"
-        )
+    with pytest.raises(RuntimeError, match="AI returned invalid post text JSON"):
+        _parse_json_object("This is completely free of any braces or json structure")
 
 
 def setup_mock_response(mock_client_fixture, text_response):
@@ -117,9 +113,7 @@ def test_extract_post_text_no_english_transcript(
         mock_google_genai_client,
     )
 
-    with pytest.raises(
-        RuntimeError, match="AI could not extract readable text"
-    ):
+    with pytest.raises(RuntimeError, match="AI could not extract readable text"):
         extract_post_text([Path("dummy.jpg")])
 
 
@@ -138,9 +132,7 @@ def test_extract_post_text_empty_response(
         mock_google_genai_client,
     )
 
-    with pytest.raises(
-        RuntimeError, match="AI returned empty post text response"
-    ):
+    with pytest.raises(RuntimeError, match="AI returned empty post text response"):
         extract_post_text([Path("dummy.jpg")])
 
 
@@ -150,9 +142,7 @@ def test_extract_post_text_invalid_json_response(
     mock_key_manager, _mock_file, mock_google_genai_client
 ):
     """Test extracting post text when AI returns invalid JSON response."""
-    setup_mock_response(
-        mock_google_genai_client, "Garbage text without any braces"
-    )
+    setup_mock_response(mock_google_genai_client, "Garbage text without any braces")
 
     mock_key_manager.key_count = 1
     valid_key = GEMINI_API_KEYS[0] if GEMINI_API_KEYS else "dummy_key"
@@ -161,9 +151,7 @@ def test_extract_post_text_invalid_json_response(
         mock_google_genai_client,
     )
 
-    with pytest.raises(
-        RuntimeError, match="AI returned invalid post text JSON"
-    ):
+    with pytest.raises(RuntimeError, match="AI returned invalid post text JSON"):
         extract_post_text([Path("dummy.jpg")])
 
 

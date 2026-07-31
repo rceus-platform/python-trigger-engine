@@ -67,7 +67,7 @@ def attach_audio_if_small(email, audio_path: str | None) -> bool:
             os.path.basename(audio_path),
         )
         return True
-    except (IOError, OSError) as e:
+    except OSError as e:
         # File was deleted or inaccessible
         logger.error("Failed to attach audio: %s", e)
         return False

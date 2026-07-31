@@ -23,9 +23,7 @@ def test_send_daily_recall_email_no_triggers(mock_get_triggers):
 @patch("core.services.email_recall.get_daily_triggers")
 @patch("core.services.email_recall.build_daily_email")
 @patch("core.services.email_recall.render_to_string")
-def test_send_daily_recall_email_success(
-    mock_render, mock_build, mock_get_triggers
-):
+def test_send_daily_recall_email_success(mock_render, mock_build, mock_get_triggers):
     """Test send_daily_recall_email constructs and sends email successfully."""
     mock_get_triggers.return_value = [
         ReelInsight(

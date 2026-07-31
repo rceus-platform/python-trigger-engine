@@ -44,9 +44,7 @@ def test_attach_audio_if_small_too_large(_mock_size, _mock_exists):
 
 @patch("os.path.exists", return_value=True)
 @patch("os.path.getsize", return_value=5 * 1024 * 1024)  # 5MB
-@patch(
-    "core.services.email_utils.guess_type", return_value=("audio/mpeg", None)
-)
+@patch("core.services.email_utils.guess_type", return_value=("audio/mpeg", None))
 @patch("builtins.open", new_callable=mock_open, read_data=b"audio bytes")
 def test_attach_audio_if_small_success(
     _mock_file, _mock_guess, _mock_size, _mock_exists
@@ -65,7 +63,7 @@ def test_attach_audio_if_small_success(
 @patch("builtins.open")
 def test_attach_audio_if_small_ioerror(mock_file, _mock_size, _mock_exists):
     """Test handling IO errors during audio attachment."""
-    mock_file.side_effect = IOError("Permissions denied")
+    mock_file.side_effect = OSError("Permissions denied")
     email = MagicMock()
     assert not attach_audio_if_small(email, "/fake/small.mp3")
 
@@ -73,9 +71,7 @@ def test_attach_audio_if_small_ioerror(mock_file, _mock_size, _mock_exists):
 @patch("core.services.email_new_reel.build_daily_email")
 @patch("core.services.email_new_reel.render_to_string")
 @patch("core.services.email_new_reel.attach_audio_if_small")
-def test_send_new_reel_email_success(
-    mock_attach_audio, mock_render, mock_build
-):
+def test_send_new_reel_email_success(mock_attach_audio, mock_render, mock_build):
     """Test successful sending of a new reel email."""
     # Mock models and functions
     insight = MagicMock()

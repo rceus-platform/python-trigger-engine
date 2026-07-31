@@ -21,9 +21,11 @@ def test_get_ffmpeg_path_success():
 
 def test_get_ffmpeg_path_not_found():
     """Test get_ffmpeg_path raises RuntimeError when ffmpeg is not found."""
-    with patch("shutil.which", return_value=None):
-        with pytest.raises(RuntimeError, match="ffmpeg not found"):
-            get_ffmpeg_path()
+    with (
+        patch("shutil.which", return_value=None),
+        pytest.raises(RuntimeError, match="ffmpeg not found"),
+    ):
+        get_ffmpeg_path()
 
 
 @patch(

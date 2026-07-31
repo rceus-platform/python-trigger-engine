@@ -3,13 +3,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def parse_first_json(text: str) -> dict | None:
     """
     Extract the first valid JSON object from a string that might
     contain markdown code blocks or extra leading/trailing text.
     """
     text = text.strip()
-    
+
     # Try direct parsing first
     try:
         parsed = json.loads(text)
@@ -19,7 +20,7 @@ def parse_first_json(text: str) -> dict | None:
         pass
 
     # Find first candidate '{'
-    start = text.find('{')
+    start = text.find("{")
     if start == -1:
         return None
 

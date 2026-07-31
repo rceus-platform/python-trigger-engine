@@ -2,7 +2,6 @@
 
 import json
 import os
-import sys
 from unittest.mock import mock_open, patch
 
 from core.constants import _get_env_bool
@@ -36,23 +35,22 @@ def test_constants_prod_secrets():
         }
     )
 
-    # We must clear the module to re-evaluate module-level logic
-    if "core.constants" in sys.modules:
-        del sys.modules["core.constants"]
+    import importlib
+
+    import core.constants
 
     with (
         patch("os.path.exists", return_value=True),
         patch("builtins.open", mock_open(read_data=fake_secrets)),
+        patch.dict(os.environ, {}, clear=True),
     ):
-        import core.constants as constants
+        importlib.reload(core.constants)
 
-        assert constants.GEMINI_API_KEYS == ["test1", "test2"]
-        assert constants.EMAIL_HOST_PASSWORD == "pw"
-        assert constants.GDRIVE_FOLDER_ID == "gdrive"
-        assert constants.DEEPGRAM_API_KEY == "dg"
-        assert constants.SITE_PASSCODE == "9999"
+        assert core.constants.GEMINI_API_KEYS == ["test1", "test2"]
+        assert core.constants.EMAIL_HOST_PASSWORD == "pw"
+        assert core.constants.GDRIVE_FOLDER_ID == "gdrive"
+        assert core.constants.DEEPGRAM_API_KEY == "dg"
+        assert core.constants.SITE_PASSCODE == "9999"
 
-    # Re-import cleanly for other tests
-    if "core.constants" in sys.modules:
-        del sys.modules["core.constants"]
-    import core.constants  # noqa: F401
+    # Restore module state
+    importlib.reload(core.constants)

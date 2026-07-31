@@ -17,9 +17,7 @@ def mock_google_genai_client():
             '{"title": "Mock Title", "hashtags": "#mock #test", '
             '"caption": "Mock Caption"}'
         )
-        mock_client_instance.models.generate_content.return_value = (
-            mock_response
-        )
+        mock_client_instance.models.generate_content.return_value = mock_response
 
         yield mock_client_instance
 
@@ -36,9 +34,7 @@ def mock_deepgram_client():
             '{"results": {"channels": [{"alternatives": [{"transcript": '
             '"mock transcript from deepgram"}]}]}}'
         )
-        mock_client_instance.listen.rest.v.analyze_file.return_value = (
-            mock_response
-        )
+        mock_client_instance.listen.rest.v.analyze_file.return_value = mock_response
 
         yield mock_client_instance
 

@@ -3,7 +3,9 @@
 import base64
 import logging
 
+from google.genai import types
 from google.genai.errors import ClientError
+from pydantic import BaseModel
 
 from core.constants import GEMINI_API_KEYS
 from core.services.gemini_key_manager import GeminiKeyManager
@@ -13,6 +15,14 @@ logger = logging.getLogger(__name__)
 
 MODEL = "models/gemini-flash-lite-latest"
 KEY_MANAGER = GeminiKeyManager()
+
+
+class Transcription(BaseModel):
+    language: str
+    transcript_native: str
+    transcript_english: str
+    triggers: list[str]
+    title: str
 
 
 def gemini_transcribe(audio_path: str) -> dict:
@@ -90,6 +100,10 @@ Output STRICT JSON only:
                         ],
                     }
                 ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=Transcription,
+                ),
             )
 
             response_text = response.text.strip() if response.text else ""
@@ -100,10 +114,8 @@ Output STRICT JSON only:
             parsed = parse_first_json(response_text)
             if parsed:
                 return parsed
-            
-            logger.error(
-                "Gemini returned non-JSON response: %s", response_text[:500]
-            )
+
+            logger.error("Gemini returned non-JSON response: %s", response_text[:500])
             raise RuntimeError("AI returned invalid JSON. Please try again.")
 
         except ClientError as e:
@@ -120,7 +132,11 @@ Output STRICT JSON only:
                 continue
 
             # ---- INVALID KEY (disable permanently) ----
-            if "API_KEY_INVALID" in error_text or "not valid" in error_text.lower() or "PERMISSION_DENIED" in error_text:
+            if (
+                "API_KEY_INVALID" in error_text
+                or "not valid" in error_text.lower()
+                or "PERMISSION_DENIED" in error_text
+            ):
                 logger.error(
                     "Gemini API key invalid or permission denied",
                     extra={"key_index": GEMINI_API_KEYS.index(api_key)},

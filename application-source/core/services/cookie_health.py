@@ -7,8 +7,8 @@ cookies before users hit errors:
 """
 
 import logging
-from datetime import datetime, timezone
-from http.cookiejar import MozillaCookieJar
+from datetime import UTC, datetime
+from http.cookiejar import LoadError, MozillaCookieJar
 from pathlib import Path
 
 from curl_cffi import requests as curl_requests
@@ -60,7 +60,7 @@ def check_cookie_file() -> dict:
     try:
         jar = MozillaCookieJar(str(path))
         jar.load(ignore_discard=True, ignore_expires=True)
-    except Exception as e:
+    except (LoadError, OSError) as e:
         report["message"] = f"Failed to parse cookie file: {e}"
         return report
 
@@ -78,7 +78,7 @@ def check_cookie_file() -> dict:
         return report
 
     # --- Check expiry ---
-    now = datetime.now(timezone.utc).timestamp()
+    now = datetime.now(UTC).timestamp()
     earliest_expiry_days = None
 
     for name in _KEY_COOKIES:
@@ -103,7 +103,9 @@ def check_cookie_file() -> dict:
 
     # --- Live check: hit Instagram with cookies and see if we're logged in ---
     try:
-        cookies_dict = {c.name: c.value for c in jar if ".instagram.com" in (c.domain or "")}
+        cookies_dict = {
+            c.name: c.value for c in jar if ".instagram.com" in (c.domain or "")
+        }
         resp = curl_requests.get(
             "https://www.instagram.com/accounts/edit/",
             impersonate="chrome",
@@ -121,7 +123,7 @@ def check_cookie_file() -> dict:
                 "Cookies may be revoked — please re-export."
             )
             return report
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("Live cookie check failed (network issue?): %s", e)
         report["live_check"] = None  # inconclusive
 
@@ -156,14 +158,14 @@ def send_cookie_alert(report: dict) -> None:
     body = f"""\
 Instagram cookie health check failed.
 
-Status: {report['message']}
+Status: {report["message"]}
 
 Details:
-  - Missing file: {report['missing_file']}
-  - Missing cookies: {report['missing_cookies'] or 'none'}
-  - Expired cookies: {report['expired_cookies'] or 'none'}
-  - Days until expiry: {report['days_until_expiry'] or 'unknown'}
-  - Live check passed: {report['live_check']}
+  - Missing file: {report["missing_file"]}
+  - Missing cookies: {report["missing_cookies"] or "none"}
+  - Expired cookies: {report["expired_cookies"] or "none"}
+  - Days until expiry: {report["days_until_expiry"] or "unknown"}
+  - Live check passed: {report["live_check"]}
 
 Action required:
   1. Open Instagram in your browser (logged in)

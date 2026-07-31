@@ -5,7 +5,9 @@ import logging
 from mimetypes import guess_type
 from pathlib import Path
 
+from google.genai import types
 from google.genai.errors import ClientError
+from pydantic import BaseModel
 
 from core.constants import GEMINI_API_KEYS
 from core.services.gemini_key_manager import GeminiKeyManager
@@ -15,6 +17,14 @@ logger = logging.getLogger(__name__)
 
 MODEL = "models/gemini-2.5-flash-lite"
 KEY_MANAGER = GeminiKeyManager()
+
+
+class PostExtraction(BaseModel):
+    language: str
+    transcript_native: str
+    transcript_english: str
+    triggers: list[str]
+    title: str
 
 
 def _safe_key_index(api_key: str) -> int:
@@ -80,6 +90,10 @@ Return STRICT JSON only:
             response = client.models.generate_content(
                 model=MODEL,
                 contents=[{"role": "user", "parts": contents}],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=PostExtraction,
+                ),
             )
 
             response_text = response.text.strip() if response.text else ""
@@ -124,9 +138,13 @@ Return STRICT JSON only:
                 KEY_MANAGER.cooldown_key(api_key)
                 continue
 
-            if "API_KEY_INVALID" in error_text or "not valid" in error_text.lower():
+            if (
+                "API_KEY_INVALID" in error_text
+                or "not valid" in error_text.lower()
+                or "PERMISSION_DENIED" in error_text
+            ):
                 logger.error(
-                    "Gemini post extraction API key invalid",
+                    "Gemini post extraction API key invalid or permission denied",
                     extra={"key_index": _safe_key_index(api_key)},
                 )
                 KEY_MANAGER.disable_key(api_key)

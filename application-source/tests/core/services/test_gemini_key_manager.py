@@ -52,9 +52,7 @@ def test_key_manager_cooldown(_mock_client):
     # If we put key2 on cooldown too, it should raise an exhaustion error
     manager.cooldown_key("key2")
 
-    with pytest.raises(
-        RuntimeError, match="All Gemini API keys are exhausted"
-    ):
+    with pytest.raises(RuntimeError, match="All Gemini API keys are exhausted"):
         manager.get_client()
 
 
@@ -71,9 +69,7 @@ def test_key_manager_disable(_mock_client):
 
     manager.disable_key("key2")
 
-    with pytest.raises(
-        RuntimeError, match="All Gemini API keys are exhausted"
-    ):
+    with pytest.raises(RuntimeError, match="All Gemini API keys are exhausted"):
         manager.get_client()
 
 
