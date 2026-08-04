@@ -5,8 +5,8 @@
             "name": "Django: runserver",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/application-source/manage.py",
-            "python": "${workspaceFolder}/application-source/.venv/bin/python",
+            "program": "${workspaceFolder}/src/trigger_engine/manage.py",
+            "python": "${workspaceFolder}/.venv/bin/python",
             "args": [
                 "runserver",
                 "0.0.0.0:8000"
@@ -14,41 +14,13 @@
             "django": true,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/application-source",
-            "envFile": "${workspaceFolder}/application-source/.env",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
             "env": {
                 "PYTHONDONTWRITEBYTECODE": "1",
-                "DEBUG": "True"
+                "DEBUG": "True",
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
             }
-        },
-        {
-            "name": "Django: qcluster",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/application-source/manage.py",
-            "python": "${workspaceFolder}/application-source/.venv/bin/python",
-            "args": [
-                "qcluster"
-            ],
-            "django": true,
-            "justMyCode": true,
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/application-source",
-            "envFile": "${workspaceFolder}/application-source/.env",
-            "env": {
-                "PYTHONDONTWRITEBYTECODE": "1",
-                "DEBUG": "True"
-            }
-        }
-    ],
-    "compounds": [
-        {
-            "name": "Django + qcluster",
-            "configurations": [
-                "Django: qcluster",
-                "Django: runserver"
-            ],
-            "stopAll": true
         }
     ]
 }

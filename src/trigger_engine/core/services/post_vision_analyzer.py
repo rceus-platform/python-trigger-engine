@@ -1,0 +1,158 @@
+"""Gemini helpers for extracting text from Instagram post images."""
+
+import json
+import logging
+from mimetypes import guess_type
+from pathlib import Path
+
+from google.genai import types
+from google.genai.errors import ClientError
+from pydantic import BaseModel
+
+from trigger_engine.core.constants import GEMINI_API_KEYS
+from trigger_engine.core.services.gemini_key_manager import GeminiKeyManager
+from trigger_engine.core.utils import parse_first_json
+
+logger = logging.getLogger(__name__)
+
+MODEL = "models/gemini-2.5-flash-lite"
+KEY_MANAGER = GeminiKeyManager()
+
+
+class PostExtraction(BaseModel):
+    language: str
+    transcript_native: str
+    transcript_english: str
+    triggers: list[str]
+    title: str
+
+
+def _safe_key_index(api_key: str) -> int:
+    try:
+        return GEMINI_API_KEYS.index(api_key)
+    except ValueError:
+        return -1
+
+
+def _parse_json_object(response_text: str) -> dict[str, object]:
+    parsed = parse_first_json(response_text)
+    if parsed is not None:
+        return parsed
+    raise RuntimeError("AI returned invalid post text JSON")
+
+
+def extract_post_text(image_paths: list[Path]) -> dict[str, str]:
+    """Extract language + text content from a list of post images."""
+    if not image_paths:
+        raise RuntimeError("No images found in Instagram post")
+
+    prompt = """
+You are an OCR and behavioral analysis engine.
+
+Tasks:
+1. Read all provided Instagram images and extract ALL text exactly as written from start to finish. Do not truncate or summarize.
+2. Detect language (hi|mr|en|mixed).
+3. Provide the full combined extracted text in original script (transcript_native).
+4. Provide a full and complete natural English translation of the entire text (transcript_english).
+5. Extract actionable behavior triggers as a list (triggers).
+6. Create a catchy title (max 5-6 words) (title).
+
+Return STRICT JSON only:
+{
+  "language": "hi|mr|en|mixed",
+  "transcript_native": "...",
+  "transcript_english": "...",
+  "triggers": ["...", "..."],
+  "title": "..."
+}
+"""
+
+    contents: list[dict[str, object]] = []
+    for image_path in image_paths:
+        mime_type, _ = guess_type(str(image_path))
+        with image_path.open("rb") as image_file:
+            contents.append(
+                {
+                    "inline_data": {
+                        "mime_type": mime_type or "image/jpeg",
+                        "data": image_file.read(),
+                    }
+                }
+            )
+    contents.append({"text": prompt})
+
+    last_error = None
+
+    for _ in range(KEY_MANAGER.key_count):
+        api_key, client = KEY_MANAGER.get_client()
+
+        try:
+            response = client.models.generate_content(
+                model=MODEL,
+                contents=[{"role": "user", "parts": contents}],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=PostExtraction,
+                ),
+            )
+
+            response_text = response.text.strip() if response.text else ""
+            if not response_text:
+                raise RuntimeError("AI returned empty post text response")
+
+            try:
+                parsed = _parse_json_object(response_text)
+            except (json.JSONDecodeError, RuntimeError) as exc:
+                logger.error(
+                    "Gemini post response was not JSON: %s",
+                    response_text[:500],
+                )
+                raise RuntimeError("AI returned invalid post text JSON") from exc
+
+            transcript_native = str(parsed.get("transcript_native", "")).strip()
+            transcript_english = str(parsed.get("transcript_english", "")).strip()
+
+            if not transcript_english:
+                raise RuntimeError("AI could not extract readable text from the post")
+
+            if not transcript_native:
+                transcript_native = transcript_english
+
+            return {
+                "language": str(parsed.get("language", "mixed")),
+                "transcript_native": transcript_native,
+                "transcript_english": transcript_english,
+                "triggers": parsed.get("triggers", []),
+                "title": str(parsed.get("title", "New Post Processed")),
+            }
+
+        except ClientError as exc:
+            error_text = str(exc)
+            last_error = exc
+
+            if "RESOURCE_EXHAUSTED" in error_text or "quota" in error_text.lower():
+                logger.warning(
+                    "Gemini post extraction quota exceeded for key",
+                    extra={"key_index": _safe_key_index(api_key)},
+                )
+                KEY_MANAGER.cooldown_key(api_key)
+                continue
+
+            if (
+                "API_KEY_INVALID" in error_text
+                or "not valid" in error_text.lower()
+                or "PERMISSION_DENIED" in error_text
+            ):
+                logger.error(
+                    "Gemini post extraction API key invalid or permission denied",
+                    extra={"key_index": _safe_key_index(api_key)},
+                )
+                KEY_MANAGER.disable_key(api_key)
+                continue
+
+            logger.exception("Gemini post text extraction failed")
+            raise RuntimeError("Post text extraction failed") from exc
+
+    raise RuntimeError(
+        "All Gemini keys exhausted for post text extraction"
+    ) from last_error

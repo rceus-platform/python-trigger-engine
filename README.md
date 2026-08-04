@@ -8,12 +8,12 @@
 
 The **Trigger Engine** is a robust backend automation and integration service built with **Django** and **Python 3.12**. It acts as a central hub for processing media, handling automated workflows, and generating AI-driven insights. 
 
-Key capabilities include interacting with Instagram via `instaloader`, downloading media using `yt-dlp`, performing speech-to-text with `deepgram-sdk`, and utilizing Google's Generative AI (`google-genai`).
+Key capabilities include interacting with Instagram via `instaloader`, downloading media using `yt-dlp`, and performing AI audio transcription with Google Generative AI (`google-genai`).
 
 ## Key Features
 
 - **Media Processing & Extraction**: Integrated with `yt-dlp` and `instaloader` to fetch media content from various social platforms.
-- **AI & Transcriptions**: Uses `google-genai` for generative AI tasks and `deepgram-sdk` for high-speed audio transcription.
+- **AI & Transcriptions**: Uses `google-genai` for multi-key rotated AI audio transcription and content synthesis.
 - **Automated Workflows**: Configurable task scheduling (e.g., daily recall emails).
 - **Advanced Scraping**: Bypasses restrictions using `curl-cffi` and extracts data via `parsel`.
 
@@ -21,7 +21,7 @@ Key capabilities include interacting with Instagram via `instaloader`, downloadi
 
 - **Framework**: [Django 6.0+](https://www.djangoproject.com/)
 - **Runtime**: [Python 3.12+](https://www.python.org/)
-- **AI / ML**: `google-genai`, `deepgram-sdk`
+- **AI / ML**: `google-genai`
 - **Media / Scraping**: `yt-dlp`, `instaloader`, `curl-cffi`, `parsel`
 - **Server**: `gunicorn`, `uvicorn`
 
@@ -31,8 +31,10 @@ Key capabilities include interacting with Instagram via `instaloader`, downloadi
 
 This project requires **FFmpeg** to be installed on the system for media processing.
 
-**Windows**:
-Download from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) and add `ffmpeg/bin` to your system `PATH`.
+**macOS**:
+```bash
+brew install ffmpeg
+```
 
 **Ubuntu / Debian**:
 ```bash
@@ -45,61 +47,116 @@ sudo apt install ffmpeg
 ### Prerequisites
 
 - **Python**: 3.12 or higher
-- **uv**: Astral's high-speed Python package manager (`pip install uv`)
+- **uv**: Astral's high-speed Python package manager (`pip install uv` or `brew install uv`)
 
-### Installation
+### Quickstart
 
 1. **Clone the repository:**
-
    ```bash
    git clone <repository_url>
-   cd python-trigger-engine/application-source
+   cd python-trigger-engine
    ```
 
-2. **Sync dependencies:**
+2. **Install dependencies and setup pre-commit:**
    ```bash
-   uv sync
+   make install
+   # or: uv sync && uv run pre-commit install
    ```
 
-### Configuration
+3. **Configure Environment:**
+   Copy `.env.example` to `.env` in the root directory:
+   ```bash
+   cp .env.example .env
+   ```
 
-Create a `.env` file in the `application-source` directory (do not commit this file).
+4. **Run Database Migrations:**
+   ```bash
+   make migrate
+   # or: uv run python src/trigger_engine/manage.py migrate
+   ```
 
-```env
-# Django Settings
-SECRET_KEY=your_django_secret_key
-DEBUG=True
+5. **Start Development Server:**
+   ```bash
+   make run
+   # or: uv run python src/trigger_engine/manage.py runserver 0.0.0.0:8000
+   ```
 
-# API Keys
-DEEPGRAM_API_KEY=your_deepgram_api_key
-GOOGLE_API_KEY=your_google_genai_key
+## Development Commands
+
+| Command | Description |
+|---|---|
+| `make install` | Install dependencies and pre-commit hooks |
+| `make run` | Start Django dev server |
+| `make migrate` | Apply database migrations |
+| `make makemigrations` | Create database migrations |
+| `make test` | Run pytest suite |
+| `make lint` | Run ruff linter |
+| `make format` | Format code with ruff |
+| `make clean` | Clean build artifacts and cache |
+
+## Project Structure
+
+```
+python-trigger-engine/
+├── .dockerignore
+├── .editorconfig
+├── .env.example
+├── .gitignore
+├── .pre-commit-config.yaml
+├── docker/
+│   ├── Dockerfile
+│   ├── Dockerfile.dev
+│   └── docker-compose.yaml
+├── infra/
+│   ├── README.md
+│   ├── cron/
+│   │   └── crontab.conf
+│   └── provisioning/
+│       ├── manifest.json
+│       ├── provision.sh
+│       └── system-packages.json
+├── Makefile
+├── pyproject.toml
+├── README.md
+├── src/
+│   └── trigger_engine/
+│       ├── manage.py
+│       ├── asgi.py
+│       ├── wsgi.py
+│       ├── urls.py
+│       ├── settings/
+│       │   ├── base.py
+│       │   ├── local.py
+│       │   └── production.py
+│       └── core/
+└── tests/
 ```
 
-### Running the Service
+## CI/CD & GitHub Workflows
 
-Start the development server:
-```bash
-cd application-source
-uv run python manage.py runserver
-```
+The repository includes standard GitHub Actions workflows under `.github/workflows/`:
+
+- **`ci.yml`**: Runs `ruff` linting, `pytest` test suite, and builds the Docker image on PRs and pushes to `main`.
+- **`cd.yml`**: Continuous Deployment pipeline that automatically updates the VM application via SSH when changes are merged to `main`.
+- **`provision.yml`**: Manual workflow for provisioning and bootstrapping the application server and system services on the production VM.
+- **`db-backup.yml`**: Scheduled daily automated backup of the SQLite database to GitHub Artifacts.
+- **`release.yml`**: Automatically builds python packages and creates GitHub Releases when version tags (`v*`) are pushed.
 
 ## Production Deployment & Scheduling
 
 ### Recall Email Scheduling
 
-To schedule daily recall emails (9am, 12pm, 3pm, 6pm, 9pm) in a production environment (e.g., Oracle VM):
+To schedule daily recall emails in production:
 
 1. Deploy the code to `/opt/apps/python-trigger-engine/`.
 2. Install the crontab:
    ```bash
-   crontab /opt/apps/python-trigger-engine/application-source/crontab.txt
+   crontab /opt/apps/python-trigger-engine/infra/cron/crontab.conf
    ```
 3. Verify the installation:
    ```bash
    crontab -l
    ```
-
-*Application logs are written to `application-source/logs/cron.log`.*
 
 ## License
 

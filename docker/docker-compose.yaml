@@ -1,0 +1,45 @@
+# ============================================================================
+# Docker Compose for Trigger Engine
+# ============================================================================
+# Services: app (hot-reload) + Redis
+# Usage:  docker compose -f docker/docker-compose.yaml up -d
+# ============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # Application — Django with hot-reload
+  # --------------------------------------------------------------------------
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../src:/app/src:cached
+      - ../tests:/app/tests:cached
+    env_file:
+      - ../.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --------------------------------------------------------------------------
+  # Redis — for caching and future task queues
+  # --------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  redisdata:
