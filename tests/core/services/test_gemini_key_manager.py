@@ -15,8 +15,9 @@ def test_key_manager_initialization():
 
 def test_key_manager_empty_keys():
     """Test error handling when initializing with empty keys."""
+    manager = GeminiKeyManager(keys=[])
     with pytest.raises(RuntimeError, match="No Gemini API keys configured"):
-        GeminiKeyManager(keys=[])
+        manager.get_client()
 
 
 @patch("google.genai.Client")

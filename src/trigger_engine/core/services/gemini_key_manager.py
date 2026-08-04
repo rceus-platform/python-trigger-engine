@@ -18,10 +18,9 @@ class GeminiKeyManager:
         keys: Iterable[str] | None = None,
         cooldown_seconds: int = DEFAULT_COOLDOWN_SECONDS,
     ) -> None:
+        self._custom_keys = keys is not None
         raw_keys = list(keys) if keys is not None else list(GEMINI_API_KEYS)
         self._keys: list[str] = [key for key in raw_keys if key]
-        if not self._keys:
-            raise RuntimeError("No Gemini API keys configured.")
         self._index = 0
         self.cooldown_seconds = cooldown_seconds
         self._cooldowns: dict[str, float] = {key: 0.0 for key in self._keys}
@@ -33,8 +32,20 @@ class GeminiKeyManager:
         """Return how many keys are managed."""
         return len(self._keys)
 
+    def _ensure_keys(self) -> None:
+        """Ensure keys are populated before operations."""
+        if not self._keys and not self._custom_keys:
+            from trigger_engine.core.constants import GEMINI_API_KEYS
+
+            self._keys = [k for k in GEMINI_API_KEYS if k]
+            self._cooldowns = {key: 0.0 for key in self._keys}
+
+        if not self._keys:
+            raise RuntimeError("No Gemini API keys configured.")
+
     def get_client(self) -> tuple[str, genai.Client]:
         """Return (api_key, Client) for the next available key, pooling instances."""
+        self._ensure_keys()
         now = time.time()
         checked = 0
 
