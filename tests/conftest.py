@@ -59,3 +59,27 @@ def mock_django_send_mail():
     """Globally mocks Django's built in send_mail function."""
     with patch("django.core.mail.send_mail") as mock_send_mail:
         yield mock_send_mail
+
+
+@pytest.fixture(autouse=True)
+def mock_gemini_keys_if_empty():
+    """Ensure tests have mock Gemini keys if no environment variables exist."""
+    from trigger_engine.core import constants
+    from trigger_engine.core.services import gemini_transcriber, post_vision_analyzer
+
+    orig_keys = list(constants.GEMINI_API_KEYS)
+    if not orig_keys:
+        constants.GEMINI_API_KEYS.append("dummy_test_key")
+        gemini_transcriber.KEY_MANAGER._keys = ["dummy_test_key"]
+        gemini_transcriber.KEY_MANAGER._cooldowns = {"dummy_test_key": 0.0}
+        post_vision_analyzer.KEY_MANAGER._keys = ["dummy_test_key"]
+        post_vision_analyzer.KEY_MANAGER._cooldowns = {"dummy_test_key": 0.0}
+
+    yield
+
+    if not orig_keys:
+        constants.GEMINI_API_KEYS.clear()
+        gemini_transcriber.KEY_MANAGER._keys.clear()
+        gemini_transcriber.KEY_MANAGER._cooldowns.clear()
+        post_vision_analyzer.KEY_MANAGER._keys.clear()
+        post_vision_analyzer.KEY_MANAGER._cooldowns.clear()

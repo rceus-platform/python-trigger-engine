@@ -2,6 +2,7 @@
 
 import json
 import os
+from pathlib import Path
 from unittest.mock import mock_open, patch
 
 from trigger_engine.core.constants import _get_env_bool
@@ -40,6 +41,7 @@ def test_constants_prod_secrets():
 
     with (
         patch("os.path.exists", return_value=True),
+        patch.object(Path, "exists", return_value=True),
         patch("builtins.open", mock_open(read_data=fake_secrets)),
         patch.dict(os.environ, {}, clear=True),
     ):

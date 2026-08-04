@@ -25,6 +25,13 @@ class Transcription(BaseModel):
     title: str
 
 
+def _safe_key_index(api_key: str) -> int:
+    try:
+        return GEMINI_API_KEYS.index(api_key)
+    except ValueError:
+        return -1
+
+
 def gemini_transcribe(audio_path: str) -> dict:
     """
     Returns:
@@ -128,7 +135,7 @@ Output STRICT JSON only:
             if "RESOURCE_EXHAUSTED" in error_text or "quota" in error_text.lower():
                 logger.warning(
                     "Gemini quota exceeded for key",
-                    extra={"key_index": GEMINI_API_KEYS.index(api_key)},
+                    extra={"key_index": _safe_key_index(api_key)},
                 )
                 KEY_MANAGER.cooldown_key(api_key)
                 continue
@@ -141,7 +148,7 @@ Output STRICT JSON only:
             ):
                 logger.error(
                     "Gemini API key invalid or permission denied",
-                    extra={"key_index": GEMINI_API_KEYS.index(api_key)},
+                    extra={"key_index": _safe_key_index(api_key)},
                 )
                 KEY_MANAGER.disable_key(api_key)
                 continue
