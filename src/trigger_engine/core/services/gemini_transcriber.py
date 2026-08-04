@@ -90,7 +90,7 @@ Output STRICT JSON only:
         try:
             logger.info(
                 "Gemini transcription attempt",
-                extra={"key_index": GEMINI_API_KEYS.index(api_key)},
+                extra={"key_index": _safe_key_index(api_key)},
             )
 
             response = client.models.generate_content(

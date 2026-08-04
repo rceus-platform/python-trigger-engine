@@ -63,23 +63,40 @@ def mock_django_send_mail():
 
 @pytest.fixture(autouse=True)
 def mock_gemini_keys_if_empty():
-    """Ensure tests have mock Gemini keys if no environment variables exist."""
+    """Ensure tests have mock Gemini keys and fresh client pools for every test."""
     from trigger_engine.core import constants
     from trigger_engine.core.services import gemini_transcriber, post_vision_analyzer
 
     orig_keys = list(constants.GEMINI_API_KEYS)
     if not orig_keys:
         constants.GEMINI_API_KEYS.append("dummy_test_key")
-        gemini_transcriber.KEY_MANAGER._keys = ["dummy_test_key"]
-        gemini_transcriber.KEY_MANAGER._cooldowns = {"dummy_test_key": 0.0}
-        post_vision_analyzer.KEY_MANAGER._keys = ["dummy_test_key"]
-        post_vision_analyzer.KEY_MANAGER._cooldowns = {"dummy_test_key": 0.0}
+
+    # Clear cached client instances so each test binds to active mocks
+    gemini_transcriber.KEY_MANAGER._clients.clear()
+    gemini_transcriber.KEY_MANAGER._cooldowns.clear()
+    gemini_transcriber.KEY_MANAGER._index = 0
+    gemini_transcriber.KEY_MANAGER._keys = list(constants.GEMINI_API_KEYS)
+    for k in gemini_transcriber.KEY_MANAGER._keys:
+        gemini_transcriber.KEY_MANAGER._cooldowns[k] = 0.0
+
+    post_vision_analyzer.KEY_MANAGER._clients.clear()
+    post_vision_analyzer.KEY_MANAGER._cooldowns.clear()
+    post_vision_analyzer.KEY_MANAGER._index = 0
+    post_vision_analyzer.KEY_MANAGER._keys = list(constants.GEMINI_API_KEYS)
+    for k in post_vision_analyzer.KEY_MANAGER._keys:
+        post_vision_analyzer.KEY_MANAGER._cooldowns[k] = 0.0
 
     yield
+
+    gemini_transcriber.KEY_MANAGER._clients.clear()
+    gemini_transcriber.KEY_MANAGER._cooldowns.clear()
+    gemini_transcriber.KEY_MANAGER._index = 0
+
+    post_vision_analyzer.KEY_MANAGER._clients.clear()
+    post_vision_analyzer.KEY_MANAGER._cooldowns.clear()
+    post_vision_analyzer.KEY_MANAGER._index = 0
 
     if not orig_keys:
         constants.GEMINI_API_KEYS.clear()
         gemini_transcriber.KEY_MANAGER._keys.clear()
-        gemini_transcriber.KEY_MANAGER._cooldowns.clear()
         post_vision_analyzer.KEY_MANAGER._keys.clear()
-        post_vision_analyzer.KEY_MANAGER._cooldowns.clear()
