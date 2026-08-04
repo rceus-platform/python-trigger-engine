@@ -10,9 +10,7 @@ def get_ffmpeg_path() -> str:
 
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
-        raise RuntimeError(
-            "ffmpeg not found in PATH. Install ffmpeg and restart the server."
-        )
+        raise RuntimeError("ffmpeg not found in PATH. Install ffmpeg and restart the server.")
     return ffmpeg
 
 
@@ -52,8 +50,6 @@ def extract_audio_for_gemini(video_path: Path, bitrate: str = "64k") -> Path:
             check=True,
         )
     except subprocess.CalledProcessError as exc:
-        raise RuntimeError(
-            f"ffmpeg failed\nSTDOUT:\n{exc.stdout}\nSTDERR:\n{exc.stderr}"
-        ) from exc
+        raise RuntimeError(f"ffmpeg failed\nSTDOUT:\n{exc.stdout}\nSTDERR:\n{exc.stderr}") from exc
 
     return audio_path

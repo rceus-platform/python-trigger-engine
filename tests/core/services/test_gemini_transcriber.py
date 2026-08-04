@@ -36,9 +36,7 @@ def test_gemini_transcribe_markdown_json(_mock_file, mock_google_genai_client):
 
 @patch("builtins.open", new_callable=mock_open, read_data=b"audio data")
 @patch("trigger_engine.core.services.gemini_transcriber.KEY_MANAGER")
-def test_gemini_transcribe_empty_response(
-    mock_key_manager, _mock_file, mock_google_genai_client
-):
+def test_gemini_transcribe_empty_response(mock_key_manager, _mock_file, mock_google_genai_client):
     """Test transcription when the AI returns an empty response."""
     setup_mock_response(mock_google_genai_client, "")
 
@@ -55,9 +53,7 @@ def test_gemini_transcribe_empty_response(
 
 @patch("builtins.open", new_callable=mock_open, read_data=b"audio data")
 @patch("trigger_engine.core.services.gemini_transcriber.KEY_MANAGER")
-def test_gemini_transcribe_invalid_json(
-    mock_key_manager, _mock_file, mock_google_genai_client
-):
+def test_gemini_transcribe_invalid_json(mock_key_manager, _mock_file, mock_google_genai_client):
     """Test transcription when the AI returns invalid JSON."""
     setup_mock_response(mock_google_genai_client, "This is just text, not JSON")
 
@@ -74,9 +70,7 @@ def test_gemini_transcribe_invalid_json(
 
 @patch("builtins.open", new_callable=mock_open, read_data=b"audio data")
 @patch("trigger_engine.core.services.gemini_transcriber.KEY_MANAGER")
-def test_gemini_transcribe_quota_error(
-    mock_key_manager, _mock_file, mock_google_genai_client
-):
+def test_gemini_transcribe_quota_error(mock_key_manager, _mock_file, mock_google_genai_client):
     """Test transcription when a quota error occurs on all keys."""
     # Setup client to raise a ClientError for quota
     error_resp = MagicMock()
@@ -125,9 +119,7 @@ def test_gemini_transcribe_invalid_key_error(
 
 @patch("builtins.open", new_callable=mock_open, read_data=b"audio data")
 @patch("trigger_engine.core.services.gemini_transcriber.KEY_MANAGER")
-def test_gemini_transcribe_general_error(
-    mock_key_manager, _mock_file, mock_google_genai_client
-):
+def test_gemini_transcribe_general_error(mock_key_manager, _mock_file, mock_google_genai_client):
     """Test transcription when a general client error occurs."""
     # Setup client to raise a different ClientError
     error_resp = MagicMock()

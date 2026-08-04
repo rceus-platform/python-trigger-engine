@@ -72,9 +72,7 @@ def check_cookie_file() -> dict:
             report["missing_cookies"].append(name)
 
     if report["missing_cookies"]:
-        report["message"] = (
-            f"Missing critical cookies: {', '.join(report['missing_cookies'])}"
-        )
+        report["message"] = f"Missing critical cookies: {', '.join(report['missing_cookies'])}"
         return report
 
     # --- Check expiry ---
@@ -103,9 +101,7 @@ def check_cookie_file() -> dict:
 
     # --- Live check: hit Instagram with cookies and see if we're logged in ---
     try:
-        cookies_dict = {
-            c.name: c.value for c in jar if ".instagram.com" in (c.domain or "")
-        }
+        cookies_dict = {c.name: c.value for c in jar if ".instagram.com" in (c.domain or "")}
         resp = curl_requests.get(
             "https://www.instagram.com/accounts/edit/",
             impersonate="chrome",

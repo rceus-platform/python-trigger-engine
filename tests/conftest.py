@@ -14,15 +14,11 @@ def mock_google_genai_client():
         # Mock the generation response
         mock_response = MagicMock()
         mock_response.text = (
-            '{"title": "Mock Title", "hashtags": "#mock #test", '
-            '"caption": "Mock Caption"}'
+            '{"title": "Mock Title", "hashtags": "#mock #test", "caption": "Mock Caption"}'
         )
         mock_client_instance.models.generate_content.return_value = mock_response
 
         yield mock_client_instance
-
-
-
 
 
 @pytest.fixture(autouse=True)

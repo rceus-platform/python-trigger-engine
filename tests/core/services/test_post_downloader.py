@@ -28,9 +28,7 @@ def test_extract_shortcode_invalid_url():
 @patch("trigger_engine.core.services.post_downloader._download_image")
 @patch("instaloader.Instaloader")
 @patch("instaloader.Post.from_shortcode")
-def test_download_instagram_post_single_image(
-    mock_from_shortcode, _mock_loader, mock_download
-):
+def test_download_instagram_post_single_image(mock_from_shortcode, _mock_loader, mock_download):
     """Test downloading a post with a single image."""
     # Setup mock post
     mock_post = MagicMock()
@@ -51,9 +49,7 @@ def test_download_instagram_post_single_image(
 @patch("trigger_engine.core.services.post_downloader._download_image")
 @patch("instaloader.Instaloader")
 @patch("instaloader.Post.from_shortcode")
-def test_download_instagram_post_sidecar(
-    mock_from_shortcode, _mock_loader, mock_download
-):
+def test_download_instagram_post_sidecar(mock_from_shortcode, _mock_loader, mock_download):
     """Test downloading a sidecar post containing images and videos."""
     # Setup mock post with multiple nodes
     mock_post = MagicMock()
@@ -111,9 +107,7 @@ def test_download_instagram_post_fallback_success(
 @patch("instaloader.Instaloader")
 @patch("instaloader.Post.from_shortcode")
 @patch("trigger_engine.core.services.post_downloader.curl_requests.get")
-def test_download_instagram_post_total_failure(
-    mock_get, mock_from_shortcode, _mock_loader
-):
+def test_download_instagram_post_total_failure(mock_get, mock_from_shortcode, _mock_loader):
     """Test behaviour when both Instaloader and fallback fail."""
     # Force instaloader to fail
     mock_from_shortcode.side_effect = Exception("Instaloader failed")
@@ -171,9 +165,7 @@ def test_download_instagram_post_fallback_no_match(mock_get, mock_instaloader):
 
 @patch("trigger_engine.core.services.post_downloader.instaloader.Instaloader")
 @patch("trigger_engine.core.services.post_downloader.curl_requests.get")
-def test_download_instagram_post_fallback_download_fail(
-    mock_get, mock_instaloader, tmp_path
-):
+def test_download_instagram_post_fallback_download_fail(mock_get, mock_instaloader, tmp_path):
     """Test fallback image fetching fails during actual content download."""
     # Make instaloader fail
     mock_instance = mock_instaloader.return_value
@@ -193,9 +185,7 @@ def test_download_instagram_post_fallback_download_fail(
         )
 
         mock_img_response = MagicMock(status_code=200)
-        mock_img_response.raise_for_status.side_effect = Exception(
-            "404 Image Not Found"
-        )
+        mock_img_response.raise_for_status.side_effect = Exception("404 Image Not Found")
 
         mock_get.side_effect = [mock_page_response, mock_img_response]
 
@@ -221,9 +211,7 @@ def test_download_instagram_post_video_carousel_skips(mock_instaloader, tmp_path
         # Node 1 is a video (skipped), Node 2 is an image (downloaded)
         mock_node_video = MagicMock(is_video=True)
         mock_node_image = MagicMock(is_video=False, display_url="http://image")
-        mock_post.get_sidecar_nodes.return_value = iter(
-            [mock_node_video, mock_node_image]
-        )
+        mock_post.get_sidecar_nodes.return_value = iter([mock_node_video, mock_node_image])
         mock_from_shortcode.return_value = mock_post
 
         def _fake_download(stem, _url, _date):

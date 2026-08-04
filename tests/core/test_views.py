@@ -174,9 +174,7 @@ def test_daily_recall(_mock_get_daily, client):
 
 def test_process_reel_no_url(client):
     """Test process_reel validating missing payloads efficiently."""
-    response = client.post(
-        "/api/process-reel/", json.dumps({}), content_type="application/json"
-    )
+    response = client.post("/api/process-reel/", json.dumps({}), content_type="application/json")
     assert response.status_code == 400
     assert "Valid Instagram URL required" in response.json()["error"]["message"]
 
@@ -204,12 +202,8 @@ def test_process_reel_cache_hit_processing_restart(mock_process_task, client):
     """Test process_reel recovering stuck jobs and rescheduling safely."""
     # Simulate a stuck task that's older than 5 minutes
     past_time = timezone.now() - timezone.timedelta(minutes=6)
-    insight = ReelInsight.objects.create(
-        source_url="https://instagram.com/p/123", title="Stuck"
-    )
-    ReelInsight.objects.filter(pk=insight.pk).update(
-        created_at=past_time
-    )  # bypass auto_now_add
+    insight = ReelInsight.objects.create(source_url="https://instagram.com/p/123", title="Stuck")
+    ReelInsight.objects.filter(pk=insight.pk).update(created_at=past_time)  # bypass auto_now_add
 
     response = client.post(
         "/api/process-reel/",
@@ -276,9 +270,7 @@ def test_process_reel_new_record(_mock_meta, mock_process_task, client):
 def test_process_reel_exception(client):
     """Test process_reel failing completely on deeply malformed payloads."""
     # Send invalid JSON to trigger the wide exception catch
-    response = client.post(
-        "/api/process-reel/", "{badjson:", content_type="application/json"
-    )
+    response = client.post("/api/process-reel/", "{badjson:", content_type="application/json")
     assert response.status_code == 500
 
 
@@ -290,9 +282,7 @@ def test_process_reel_exception(client):
 @patch("trigger_engine.core.services.processor.send_new_reel_email")
 def test_process_reel_task_post(mock_send_email, mock_extract, mock_download):
     """Test the complete background pipeline handling posts correctly."""
-    insight = ReelInsight.objects.create(
-        source_url="https://instagram.com/p/123", title="Pending"
-    )
+    insight = ReelInsight.objects.create(source_url="https://instagram.com/p/123", title="Pending")
 
     mock_img_path = MagicMock(spec=Path)
     mock_download.return_value = [mock_img_path]

@@ -105,9 +105,7 @@ def download_reel(url: str) -> Path:
 
     resp = curl_requests.get(url, impersonate="chrome")
     if resp.status_code != 200:
-        raise RuntimeError(
-            f"Failed to fetch reel page (HTTP {resp.status_code}): {url}"
-        )
+        raise RuntimeError(f"Failed to fetch reel page (HTTP {resp.status_code}): {url}")
 
     selector = Selector(resp.text)
     scripts = selector.css('script[type="application/json"]::text').getall()

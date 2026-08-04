@@ -25,9 +25,7 @@ def get_daily_triggers(limit: int = 5) -> list[ReelInsight]:
             break
 
         manager = ReelInsight.objects
-        insights = (
-            manager.filter(created_at__gte=since).exclude(id__in=seen_ids).order_by("?")
-        )
+        insights = manager.filter(created_at__gte=since).exclude(id__in=seen_ids).order_by("?")
 
         added_from_bucket = 0
         for insight in insights:

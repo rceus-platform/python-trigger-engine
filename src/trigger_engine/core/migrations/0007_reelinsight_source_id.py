@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0006_reelinsight_title'),
+        ("core", "0006_reelinsight_title"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='reelinsight',
-            name='source_id',
-            field=models.CharField(blank=True, db_index=True, max_length=100, null=True, unique=True),
+            model_name="reelinsight",
+            name="source_id",
+            field=models.CharField(
+                blank=True, db_index=True, max_length=100, null=True, unique=True
+            ),
         ),
     ]

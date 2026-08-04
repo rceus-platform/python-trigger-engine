@@ -46,9 +46,7 @@ def test_attach_audio_if_small_too_large(_mock_size, _mock_exists):
 @patch("os.path.getsize", return_value=5 * 1024 * 1024)  # 5MB
 @patch("trigger_engine.core.services.email_utils.guess_type", return_value=("audio/mpeg", None))
 @patch("builtins.open", new_callable=mock_open, read_data=b"audio bytes")
-def test_attach_audio_if_small_success(
-    _mock_file, _mock_guess, _mock_size, _mock_exists
-):
+def test_attach_audio_if_small_success(_mock_file, _mock_guess, _mock_size, _mock_exists):
     """Test successful audio attachment."""
     email = MagicMock()
     assert attach_audio_if_small(email, "/fake/small.mp3")
@@ -95,9 +93,7 @@ def test_send_new_reel_email_success(mock_attach_audio, mock_render, mock_build)
     mock_attach_audio.assert_called_once_with(mock_email, "/path/to/audio.mp3")
     mock_render.assert_called_once()
 
-    mock_email.attach_alternative.assert_called_once_with(
-        "<html>Html Body</html>", "text/html"
-    )
+    mock_email.attach_alternative.assert_called_once_with("<html>Html Body</html>", "text/html")
     mock_email.send.assert_called_once()
 
 

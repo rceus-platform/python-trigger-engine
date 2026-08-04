@@ -17,7 +17,8 @@ from trigger_engine.core.services.post_vision_analyzer import (
 
 def test_safe_key_index():
     """Test safe key index generation."""
-    with patch("trigger_engine.core.services.post_vision_analyzer.GEMINI_API_KEYS", ["key1", "key2"]):
+    target = "trigger_engine.core.services.post_vision_analyzer.GEMINI_API_KEYS"
+    with patch(target, ["key1", "key2"]):
         assert _safe_key_index("key2") == 1
         assert _safe_key_index("unknown") == -1
 
@@ -81,9 +82,7 @@ def test_extract_post_text_success(_mock_file, mock_google_genai_client):
 
 
 @patch("pathlib.Path.open", new_callable=mock_open, read_data=b"image bytes")
-def test_extract_post_text_fallback_native_transcript(
-    _mock_file, mock_google_genai_client
-):
+def test_extract_post_text_fallback_native_transcript(_mock_file, mock_google_genai_client):
     """Test extracting post text when native transcript is empty."""
     response_json = {
         "transcript_native": "",  # Empty native transcript
@@ -119,9 +118,7 @@ def test_extract_post_text_no_english_transcript(
 
 @patch("pathlib.Path.open", new_callable=mock_open)
 @patch("trigger_engine.core.services.post_vision_analyzer.KEY_MANAGER")
-def test_extract_post_text_empty_response(
-    mock_key_manager, _mock_file, mock_google_genai_client
-):
+def test_extract_post_text_empty_response(mock_key_manager, _mock_file, mock_google_genai_client):
     """Test extracting post text when AI returns empty response."""
     setup_mock_response(mock_google_genai_client, "")
 
@@ -157,9 +154,7 @@ def test_extract_post_text_invalid_json_response(
 
 @patch("pathlib.Path.open", new_callable=mock_open)
 @patch("trigger_engine.core.services.post_vision_analyzer.KEY_MANAGER")
-def test_extract_post_text_quota_error(
-    mock_key_manager, _mock_file, mock_google_genai_client
-):
+def test_extract_post_text_quota_error(mock_key_manager, _mock_file, mock_google_genai_client):
     """Test extracting post text handles quota errors."""
     error_resp = MagicMock(text="RESOURCE_EXHAUSTED quota")
     error_mock = ClientError("RESOURCE_EXHAUSTED", response=error_resp)
@@ -201,9 +196,7 @@ def test_extract_post_text_invalid_key_error(
 
 @patch("pathlib.Path.open", new_callable=mock_open)
 @patch("trigger_engine.core.services.post_vision_analyzer.KEY_MANAGER")
-def test_extract_post_text_general_error(
-    mock_key_manager, _mock_file, mock_google_genai_client
-):
+def test_extract_post_text_general_error(mock_key_manager, _mock_file, mock_google_genai_client):
     """Test extracting post text handles general errors."""
     error_resp = MagicMock(text="General API Fault")
     error_mock = ClientError("Fault", response=error_resp)

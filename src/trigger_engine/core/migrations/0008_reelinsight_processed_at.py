@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0007_reelinsight_source_id'),
+        ("core", "0007_reelinsight_source_id"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='reelinsight',
-            name='processed_at',
+            model_name="reelinsight",
+            name="processed_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]

@@ -54,10 +54,12 @@ You are a behavioral coaching system and transcription engine.
 
 Tasks:
 1. Detect spoken language (Hindi, Marathi, or English).
-2. Transcribe the ENTIRE audio word-for-word (verbatim) from start to finish. Do not summarize or truncate:
+2. Transcribe the ENTIRE audio word-for-word (verbatim) from start to finish.
+   Do not summarize or truncate:
    - If Hindi or Marathi: Output in DEVANAGARI script.
    - Preserve English words if spoken.
-3. Provide a full and complete clean English translation of the entire transcript. Do not leave anything out.
+3. Provide a full and complete clean English translation of the entire transcript.
+   Do not leave anything out.
 4. Extract behavior triggers:
    - Clear, actionable, short, and concrete.
    - One trigger per line in the JSON array.
@@ -148,6 +150,4 @@ Output STRICT JSON only:
             logger.exception("Gemini processing failed")
             raise RuntimeError("AI processing failed. Please try again later.") from e
 
-    raise RuntimeError(
-        "AI quota exceeded on all Gemini keys. Please retry later."
-    ) from last_error
+    raise RuntimeError("AI quota exceeded on all Gemini keys. Please retry later.") from last_error

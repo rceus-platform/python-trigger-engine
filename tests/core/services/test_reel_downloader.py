@@ -30,9 +30,7 @@ def test_extract_shortcode_invalid():
 
 def test_extract_shortcode_malformed():
     """Test extracting shortcode handles malformed URLs."""
-    with pytest.raises(
-        ValueError, match="Cannot extract shortcode from: http://invalid"
-    ):
+    with pytest.raises(ValueError, match="Cannot extract shortcode from: http://invalid"):
         _extract_shortcode("http://invalid")
 
 
@@ -181,8 +179,7 @@ def test_download_reel_json_success(mock_curl_get, mock_download):
     # tag
     script_data = json.dumps({"video_versions": [{"url": "http://json_video.mp4"}]})
     mock_resp.text = (
-        '<html><body><script type="application/json">'
-        f"{script_data}</script></body></html>"
+        f'<html><body><script type="application/json">{script_data}</script></body></html>'
     )
     mock_curl_get.return_value = mock_resp
 
@@ -219,9 +216,7 @@ def test_download_reel_regex_fallback_success(mock_curl_get, mock_download):
     """Test fallback to regex successful downloading."""
     mock_resp = MagicMock(status_code=200)
     # No useful JSON, but raw html contains a matching CDN url
-    mock_resp.text = (
-        '<html> "https://instagram.fcow1-2.fna.fbcdn.net/v/test/video.mp4xyz" </html>'
-    )
+    mock_resp.text = '<html> "https://instagram.fcow1-2.fna.fbcdn.net/v/test/video.mp4xyz" </html>'
     mock_curl_get.return_value = mock_resp
 
     expected_path = MEDIA_DIR / "ABC.mp4"

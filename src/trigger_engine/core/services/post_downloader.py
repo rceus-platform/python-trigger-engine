@@ -79,9 +79,7 @@ def _save_image_from_url(
     resp.raise_for_status()
     save_path = MEDIA_DIR / f"{shortcode}_{suffix}.jpg"
     save_path.write_bytes(resp.content)
-    logger.info(
-        "Saved fallback image: %s (%d bytes)", save_path.name, len(resp.content)
-    )
+    logger.info("Saved fallback image: %s (%d bytes)", save_path.name, len(resp.content))
     return save_path
 
 
@@ -148,9 +146,7 @@ def _extract_image_from_html(html: str) -> str | None:
         return match.group(1).replace("\\u0026", "&")
 
     # 4) Any scontent CDN image URL
-    match = re.search(
-        r'"(https://scontent[a-z0-9.-]*\.cdninstagram\.com/[^"]+\.jpg[^"]*)"', html
-    )
+    match = re.search(r'"(https://scontent[a-z0-9.-]*\.cdninstagram\.com/[^"]+\.jpg[^"]*)"', html)
     if match:
         return match.group(1).replace("\\u0026", "&")
 
@@ -225,9 +221,7 @@ def _try_embed_page(shortcode: str) -> list[Path]:
     cookies = _load_cookies_dict()
     embed_url = f"https://www.instagram.com/p/{shortcode}/embed/captioned/"
 
-    resp = curl_requests.get(
-        embed_url, impersonate="chrome", timeout=20, cookies=cookies or None
-    )
+    resp = curl_requests.get(embed_url, impersonate="chrome", timeout=20, cookies=cookies or None)
     if resp.status_code != 200:
         raise RuntimeError(f"Embed page returned HTTP {resp.status_code}")
 
@@ -237,10 +231,7 @@ def _try_embed_page(shortcode: str) -> list[Path]:
     # --- JSON extraction from <script> tags ---
     sel = Selector(text=html)
     for script_content in sel.css("script::text").getall():
-        if (
-            "display_url" not in script_content
-            and "display_resources" not in script_content
-        ):
+        if "display_url" not in script_content and "display_resources" not in script_content:
             continue
         try:
             json_data = json.loads(script_content)
@@ -277,18 +268,12 @@ def _try_embed_page(shortcode: str) -> list[Path]:
         if display_urls:
             img_url = display_urls[0]
             if isinstance(img_url, str) and img_url.startswith("http"):
-                return [
-                    _save_image_from_url(
-                        img_url, shortcode, "embed_0", impersonate="chrome"
-                    )
-                ]
+                return [_save_image_from_url(img_url, shortcode, "embed_0", impersonate="chrome")]
 
     # --- Regex fallback ---
     image_url = _extract_image_from_html(html)
     if image_url:
-        return [
-            _save_image_from_url(image_url, shortcode, "embed_0", impersonate="chrome")
-        ]
+        return [_save_image_from_url(image_url, shortcode, "embed_0", impersonate="chrome")]
 
     raise RuntimeError("No image found in embed page")
 
@@ -311,19 +296,13 @@ def _try_direct_page(post_url: str, shortcode: str) -> list[Path]:
     last_err = None
     for strategy in strategies:
         try:
-            resp = curl_requests.get(
-                post_url, timeout=15, cookies=cookies or None, **strategy
-            )
+            resp = curl_requests.get(post_url, timeout=15, cookies=cookies or None, **strategy)
             if resp.status_code != 200:
                 continue
 
             image_url = _extract_image_from_html(resp.text)
             if image_url:
-                return [
-                    _save_image_from_url(
-                        image_url, shortcode, "direct", impersonate="chrome"
-                    )
-                ]
+                return [_save_image_from_url(image_url, shortcode, "direct", impersonate="chrome")]
 
         except Exception as strategy_err:  # noqa: BLE001
             last_err = strategy_err
@@ -369,9 +348,7 @@ def _try_ytdlp_thumbnail(post_url: str, shortcode: str) -> list[Path]:
     resp = plain_requests.get(thumbnail, timeout=20, stream=True)
     resp.raise_for_status()
     save_path.write_bytes(resp.content)
-    logger.info(
-        "Saved yt-dlp thumbnail: %s (%d bytes)", save_path.name, len(resp.content)
-    )
+    logger.info("Saved yt-dlp thumbnail: %s (%d bytes)", save_path.name, len(resp.content))
     return [save_path]
 
 
@@ -406,6 +383,4 @@ def download_instagram_post(post_url: str) -> list[Path]:
             logger.warning("Strategy '%s' failed for post %s: %s", name, shortcode, e)
             last_err = e
 
-    raise RuntimeError(
-        f"All download strategies failed for post {shortcode}"
-    ) from last_err
+    raise RuntimeError(f"All download strategies failed for post {shortcode}") from last_err

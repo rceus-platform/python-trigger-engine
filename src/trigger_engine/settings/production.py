@@ -2,12 +2,15 @@
 
 import os
 
+from trigger_engine.core import constants
+
 from .base import *  # noqa: F403
+from .base import SECRET_KEY as BASE_SECRET_KEY
 
 DEBUG = False
 
 # Production Secret Key (loads from environment variable or constants)
-SECRET_KEY = os.getenv("SECRET_KEY") or getattr(constants, "SECRET_KEY", SECRET_KEY)
+SECRET_KEY = os.getenv("SECRET_KEY") or getattr(constants, "SECRET_KEY", BASE_SECRET_KEY)
 
 # Production Allowed Hosts
 ALLOWED_HOSTS = [

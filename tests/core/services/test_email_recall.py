@@ -54,7 +54,5 @@ def test_send_daily_recall_email_success(mock_render, mock_build, mock_get_trigg
     assert "t2" in text_body
 
     # Verify email was sent with HTML part
-    mock_email.attach_alternative.assert_called_once_with(
-        "<html>Mock HTML</html>", "text/html"
-    )
+    mock_email.attach_alternative.assert_called_once_with("<html>Mock HTML</html>", "text/html")
     mock_email.send.assert_called_once()

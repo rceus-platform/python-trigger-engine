@@ -29,11 +29,7 @@ class Command(BaseCommand):
         report = check_cookie_file()
 
         if not options["quiet"]:
-            status = (
-                self.style.SUCCESS("✓ OK")
-                if report["ok"]
-                else self.style.ERROR("✗ FAIL")
-            )
+            status = self.style.SUCCESS("✓ OK") if report["ok"] else self.style.ERROR("✗ FAIL")
             self.stdout.write(f"{status}  {report['message']}")
 
         if not report["ok"] and not options["no_email"]:

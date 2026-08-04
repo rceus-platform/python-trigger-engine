@@ -50,7 +50,8 @@ def extract_post_text(image_paths: list[Path]) -> dict[str, str]:
 You are an OCR and behavioral analysis engine.
 
 Tasks:
-1. Read all provided Instagram images and extract ALL text exactly as written from start to finish. Do not truncate or summarize.
+1. Read all provided Instagram images and extract ALL text exactly as written
+   from start to finish. Do not truncate or summarize.
 2. Detect language (hi|mr|en|mixed).
 3. Provide the full combined extracted text in original script (transcript_native).
 4. Provide a full and complete natural English translation of the entire text (transcript_english).
@@ -153,6 +154,4 @@ Return STRICT JSON only:
             logger.exception("Gemini post text extraction failed")
             raise RuntimeError("Post text extraction failed") from exc
 
-    raise RuntimeError(
-        "All Gemini keys exhausted for post text extraction"
-    ) from last_error
+    raise RuntimeError("All Gemini keys exhausted for post text extraction") from last_error

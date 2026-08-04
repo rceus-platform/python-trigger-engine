@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0005_reelinsight_audio_hash_and_more'),
+        ("core", "0005_reelinsight_audio_hash_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='reelinsight',
-            name='title',
+            model_name="reelinsight",
+            name="title",
             field=models.CharField(blank=True, max_length=200, null=True),
         ),
     ]

@@ -41,9 +41,7 @@ def test_attach_audio_if_small_too_large():
 @patch("os.path.exists", return_value=True)
 @patch("os.path.getsize", return_value=100)
 @patch("trigger_engine.core.services.email_utils.guess_type", return_value=("audio/mpeg", None))
-def test_attach_audio_if_small_success(
-    _mock_guess, _mock_size, _mock_exists, _mock_file
-):
+def test_attach_audio_if_small_success(_mock_guess, _mock_size, _mock_exists, _mock_file):
     """Test successful audio attachment."""
     email_mock = MagicMock()
 

@@ -77,14 +77,20 @@ EMAIL_PORT = int(_get_secret("EMAIL_PORT", "587") or "587")
 EMAIL_USE_TLS = _get_env_bool("EMAIL_USE_TLS", default=True)
 EMAIL_HOST_USER = _get_secret("EMAIL_HOST_USER", "inout440@gmail.com")
 
-_daily_emails = _get_secret(
-    "DAILY_RECALL_EMAILS",
-    "21rhi21@gmail.com,rhishichikhalkar21@gmail.com",
-) or ""
+_daily_emails = (
+    _get_secret(
+        "DAILY_RECALL_EMAILS",
+        "21rhi21@gmail.com,rhishichikhalkar21@gmail.com",
+    )
+    or ""
+)
 DAILY_RECALL_EMAILS: list[str] = [e.strip() for e in _daily_emails.split(",") if e.strip()]
 
-_admin_emails = _get_secret(
-    "ADMIN_EMAILS",
-    "21rhi21@gmail.com,rhishichikhalkar21@gmail.com",
-) or ""
+_admin_emails = (
+    _get_secret(
+        "ADMIN_EMAILS",
+        "21rhi21@gmail.com,rhishichikhalkar21@gmail.com",
+    )
+    or ""
+)
 ADMIN_EMAILS: list[str] = [e.strip() for e in _admin_emails.split(",") if e.strip()]
