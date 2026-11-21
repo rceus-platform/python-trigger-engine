@@ -101,7 +101,10 @@ def process_reel_task(insight_id: int, url: str):
 
         insight.save()
 
-        send_new_reel_email(insight, getattr(insight, "audio_path_for_email", None))
+        try:
+            send_new_reel_email(insight, getattr(insight, "audio_path_for_email", None))
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Failed to send new reel email: %s", e)
         logger.info("Background processing complete for insight %s", insight_id)
 
     except Exception as e:
