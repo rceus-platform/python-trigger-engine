@@ -21,6 +21,25 @@ MEDIA_DIR.mkdir(exist_ok=True)
 # ---------------------------------------------------------------------------
 
 
+def _load_cookies_dict() -> dict[str, str]:
+    """Load Instagram Netscape cookies file into a simple {name: value} dict."""
+    from http.cookiejar import LoadError, MozillaCookieJar
+
+    from trigger_engine.core.constants import INSTAGRAM_COOKIES_PATH
+
+    path = Path(INSTAGRAM_COOKIES_PATH)
+    if not path.exists():
+        return {}
+
+    try:
+        jar = MozillaCookieJar(str(path))
+        jar.load(ignore_discard=True, ignore_expires=True)
+        return {c.name: c.value for c in jar if ".instagram.com" in (c.domain or "")}
+    except (LoadError, OSError) as e:
+        logger.warning("Failed to load cookies from %s: %s", path, e)
+        return {}
+
+
 def _extract_shortcode(url: str) -> str:
     """Pull the shortcode out of a /reel/ or /p/ URL."""
     match = re.search(r"/(reel|p)/([A-Za-z0-9_-]+)", url)
@@ -89,21 +108,27 @@ def get_reel_metadata(url: str) -> dict:
 
 
 def download_reel(url: str) -> Path:
-    """
-    Downloads an Instagram reel and returns the video file path.
+    """Downloads an Instagram reel and returns the video file path.
 
     Strategy:
-      1. Fetch the reel page via curl_cffi (impersonates Chrome, bypasses 403).
+      1. Fetch the reel page via curl_cffi with cookies (impersonates Chrome).
       2. Find video_versions URL inside embedded JSON script tags.
       3. Regex fallback: scan raw HTML for .mp4 CDN links.
-      4. Stream-download the .mp4 with plain requests.
+      4. yt-dlp fallback: download via yt-dlp with Netscape cookie file.
+      5. Stream-download the .mp4 with plain requests.
     """
+
     shortcode = _extract_shortcode(url)
     save_path = MEDIA_DIR / f"{shortcode}.mp4"
 
     logger.info("Starting reel download: %s  (shortcode=%s)", url, shortcode)
 
-    resp = curl_requests.get(url, impersonate="chrome")
+    cookies = _load_cookies_dict()
+    req_kwargs: dict = {"impersonate": "chrome"}
+    if cookies:
+        req_kwargs["cookies"] = cookies
+
+    resp = curl_requests.get(url, **req_kwargs)
     if resp.status_code != 200:
         raise RuntimeError(f"Failed to fetch reel page (HTTP {resp.status_code}): {url}")
 
@@ -139,5 +164,26 @@ def download_reel(url: str) -> Path:
         if decoded:
             logger.info("Found video URL via Regex.")
             return _download_file(decoded, save_path)
+
+    # --- Attempt 3: yt-dlp fallback ---
+    logger.info("Direct scraping missed video; trying yt-dlp fallback…")
+    try:
+        from trigger_engine.core.constants import INSTAGRAM_COOKIES_PATH
+
+        cookies_path = Path(INSTAGRAM_COOKIES_PATH)
+        ydl_opts: dict = {
+            "quiet": True,
+            "no_warnings": True,
+            "outtmpl": str(save_path),
+        }
+        if cookies_path.exists():
+            ydl_opts["cookiefile"] = str(cookies_path)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        if save_path.exists() and save_path.stat().st_size > 0:
+            logger.info("Saved via yt-dlp to: %s", save_path)
+            return save_path
+    except Exception as e:
+        logger.warning("yt-dlp fallback failed: %s", e)
 
     raise RuntimeError(f"Could not find a playable video URL for reel: {url}")
